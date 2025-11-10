@@ -22,14 +22,11 @@ class WeatherViewModel @Inject constructor(
     private val _state = MutableStateFlow(WeatherState())
     val state = _state.asStateFlow()
 
-    init {
-        onEvent(WeatherEvent.SearchWeather("Москва"))
-    }
-
     fun onEvent(event: WeatherEvent) {
         when (event) {
             is WeatherEvent.SearchWeather -> {
                 searchWeather(event.location)
+                _state.update { it.copy(lastSearchedLocation = event.location, searchQuery = event.location) }
             }
             is WeatherEvent.UpdateSearchQuery -> {
                 _state.update { it.copy(searchQuery = event.query) }

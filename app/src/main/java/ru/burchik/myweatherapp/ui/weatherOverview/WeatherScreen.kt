@@ -1,5 +1,10 @@
 package ru.burchik.myweatherapp.ui.weatherOverview
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.WarningAmber
@@ -36,22 +42,33 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat.getCurrentLocation
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.ui.theme.common.WeatherIconByCondition
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +77,35 @@ fun WeatherScreen(
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var hasLocationPermission by remember { mutableStateOf(false) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+        if (hasLocationPermission) {
+            getCurrentLocation(context) { location ->
+                viewModel.onEvent(WeatherEvent.SearchWeather(location))
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        hasLocationPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasLocationPermission) {
+            getCurrentLocation(context) {
+                Timber.d("Location: 22 $it")
+                viewModel.onEvent(WeatherEvent.SearchWeather(it))
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -81,20 +127,36 @@ fun WeatherScreen(
             SearchBar(
                 query = state.searchQuery,
                 onQueryChange = { viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it)) },
-                onSearch = { viewModel.onEvent(WeatherEvent.SearchWeather(it)) }
+                onSearch = { viewModel.onEvent(WeatherEvent.SearchWeather(it)) },
+                onLocationBasedQuery = {
+                    if (hasLocationPermission) {
+                        getCurrentLocation(context) { location ->
+                            Timber.d("Location: 33 $location")
+                            viewModel.onEvent(WeatherEvent.SearchWeather(location))
+                        }
+                    } else {
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
+                }
             )
 
             when {
                 state.isLoading -> {
                     LoadingContent()
                 }
+
                 state.error.isNotEmpty() -> {
                     ErrorContent(
                         error = state.error,
-                        onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch)}
+                        onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
                     )
-                    //viewModel.onEvent(WeatherEvent.SetSearchBarVisibility(true))
                 }
+
                 state.weather != null -> {
                     WeatherContent(weather = state.weather!!)
                 }
@@ -103,11 +165,22 @@ fun WeatherScreen(
     }
 }
 
+@SuppressLint("MissingPermission")
+fun getCurrentLocation(context: android.content.Context, onLocationReceived: (String) -> Unit) {
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    fusedLocationClient.lastLocation.addOnSuccessListener {
+        if (it != null) {
+            onLocationReceived("${it.latitude},${it.longitude}")
+        }
+    }
+}
+
 @Composable
 fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    onSearch: (String) -> Unit
+    onSearch: (String) -> Unit,
+    onLocationBasedQuery: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -123,14 +196,25 @@ fun SearchBar(
             shape = MaterialTheme.shapes.medium,
             singleLine = true,
             trailingIcon = {
-                IconButton(
-                    onClick = { onSearch(query) },
-                    modifier = Modifier
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search"
-                    )
+                Row() {
+                    IconButton(
+                        onClick = { onSearch(query) },
+                        modifier = Modifier
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search"
+                        )
+                    }
+                    IconButton(
+                        onClick = { onLocationBasedQuery() },
+                        modifier = Modifier
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddLocation,
+                            contentDescription = "Search"
+                        )
+                    }
                 }
             }
         )
@@ -172,9 +256,11 @@ fun ErrorContent(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(imageVector = Icons.Filled.WarningAmber,
-                modifier = Modifier.size(48.dp) ,
-                contentDescription = "Alert")
+            Icon(
+                imageVector = Icons.Filled.WarningAmber,
+                modifier = Modifier.size(48.dp),
+                contentDescription = "Alert"
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = error,
@@ -217,18 +303,20 @@ fun WeatherContent(weather: Weather) {
 @Preview
 @Composable
 private fun CurrentWeatherCardPreview() {
-    CurrentWeatherCard(weather = Weather(
-        location = "Москва",
-        country = "Россия",
-        temperature = 25.0,
-        condition = "rainy",
-        conditionIcon = "rainy",
-        humidity = 87,
-        windSpeed = 5.0,
-        feelsLike = 7.4,
-        hourlyForecast = listOf(),
-        forecast = listOf()
-    ))
+    CurrentWeatherCard(
+        weather = Weather(
+            location = "Москва",
+            country = "Россия",
+            temperature = 25.0,
+            condition = "rainy",
+            conditionIcon = "rainy",
+            humidity = 87,
+            windSpeed = 5.0,
+            feelsLike = 7.4,
+            hourlyForecast = listOf(),
+            forecast = listOf()
+        )
+    )
 }
 
 @Composable
@@ -258,11 +346,11 @@ fun CurrentWeatherCard(
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-/*                Text(
-                    text = "${weather.temperature.toInt()}°C",
-                    style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Bold
-                )*/
+                /*                Text(
+                                    text = "${weather.temperature.toInt()}°C",
+                                    style = MaterialTheme.typography.displayLarge,
+                                    fontWeight = FontWeight.Bold
+                                )*/
                 WeatherIconByCondition(
                     modifier = Modifier.alpha(0.5f),
                     condition = weather.condition,
@@ -273,10 +361,10 @@ fun CurrentWeatherCard(
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold
                 )
-/*                Text(
-                    text = weather.condition,
-                    style = MaterialTheme.typography.titleLarge
-                )*/
+                /*                Text(
+                                    text = weather.condition,
+                                    style = MaterialTheme.typography.titleLarge
+                                )*/
                 Text(
                     //text = "Ощущается как ${weather.feelsLike.toInt()}°C",
                     text = stringResource(R.string.feels_like, weather.feelsLike.toInt()),
@@ -471,12 +559,12 @@ fun ForecastCard(day: ForecastDay, modifier: Modifier = Modifier) {
                 condition = day.condition,
                 size = 24.dp
             )
-/*            Text(
-                text = day.condition,
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2
-            )*/
+            /*            Text(
+                            text = day.condition,
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2
+                        )*/
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "${day.maxTemp.toInt()}° / ${day.minTemp.toInt()}°",

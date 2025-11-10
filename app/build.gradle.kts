@@ -74,6 +74,9 @@ dependencies {
     implementation(libs.androidx.hilt.navigation.compose)
     ksp(libs.androidx.hilt.compiler)
 
+    // Location
+    implementation(libs.play.services.location)
+
     // retrofit
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
