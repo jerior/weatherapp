@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Weather</string>
+    <string name="feels_like">Feels like %1$s°C</string>
+</resources>
