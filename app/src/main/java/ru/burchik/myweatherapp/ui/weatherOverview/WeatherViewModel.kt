@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.update
 import ru.burchik.myweatherapp.data.source.remote.base.NetworkErrorHandler
 import ru.burchik.myweatherapp.domain.util.NetworkResult
 import ru.burchik.myweatherapp.domain.repository.WeatherRepository
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -39,7 +38,7 @@ class WeatherViewModel @Inject constructor(
 
     private fun searchWeather(location: String) {
         if (location.isBlank()) {
-            _state.update { it.copy(error = "Город или местоположение") }
+            _state.update { it.copy(error = "В запросе нет данных о местопложении") }
             return
         }
 

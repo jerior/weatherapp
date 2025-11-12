@@ -87,6 +87,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
 
+    // For AppWidgets support
+    implementation(libs.androidx.glance.appwidget)
+    // For interop APIs with Material 3
+    implementation(libs.androidx.glance.material3)
     // logger
     implementation(libs.timber)
 

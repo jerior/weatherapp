@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Погода</string>
     <string name="feels_like">Ощущается как %1$s°C</string>
+    <string name="app_widget_description">Всепогодный виджет</string>
 </resources>

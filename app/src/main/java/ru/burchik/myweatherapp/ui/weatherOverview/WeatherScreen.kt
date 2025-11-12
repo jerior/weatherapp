@@ -57,18 +57,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.core.location.LocationManagerCompat.getCurrentLocation
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.location.LocationServices
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
 import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.ui.theme.common.WeatherIconByCondition
-import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +97,6 @@ fun WeatherScreen(
 
         if (hasLocationPermission) {
             getCurrentLocation(context) {
-                Timber.d("Location: 22 $it")
                 viewModel.onEvent(WeatherEvent.SearchWeather(it))
             }
         }
@@ -131,7 +126,6 @@ fun WeatherScreen(
                 onLocationBasedQuery = {
                     if (hasLocationPermission) {
                         getCurrentLocation(context) { location ->
-                            Timber.d("Location: 33 $location")
                             viewModel.onEvent(WeatherEvent.SearchWeather(location))
                         }
                     } else {
