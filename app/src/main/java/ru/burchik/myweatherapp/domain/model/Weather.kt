@@ -4,8 +4,7 @@ data class Weather(
     val location: String,
     val country: String,
     val temperature: Double,
-    val condition: String,
-    val conditionIcon: String,
+    val condition: WeatherCondition,
     val humidity: Int,
     val windSpeed: Double,
     val feelsLike: Double,
@@ -16,8 +15,7 @@ data class Weather(
 data class HourlyForecast(
     val time: String,
     val temperature: Double,
-    val condition: String,
-    val conditionIcon: String,
+    val condition: WeatherCondition,
     val chanceOfRain: Int,
     val windSpeed: Double
 )
@@ -27,7 +25,6 @@ data class ForecastDay(
     val dateEpoch: Long,
     val maxTemp: Double,
     val minTemp: Double,
-    val condition: String,
-    val conditionIcon: String,
+    val condition: WeatherCondition,
     val chanceOfRain: Int
 )

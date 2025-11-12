@@ -28,6 +28,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.Weather
+import ru.burchik.myweatherapp.domain.model.WeatherCondition
 import ru.burchik.myweatherapp.domain.repository.WeatherRepository
 import ru.burchik.myweatherapp.domain.util.NetworkResult
 
@@ -47,8 +48,7 @@ class WeatherWidget : GlanceAppWidget() {
             location = "Moscow",
             country = "Russia",
             temperature = 0.0,
-            condition = "sunny",
-            conditionIcon = "sunny",
+            condition = WeatherCondition.ClearSky,
             humidity = 0,
             windSpeed = 0.0,
             feelsLike = 0.0,
@@ -68,7 +68,7 @@ class WeatherWidget : GlanceAppWidget() {
 /*        withContext(Dispatchers.IO) {
         }*/
 
-        weatherRepository.getWeather("Moscow").collect { result ->
+        weatherRepository.getWeather("Antalya").collect { result ->
             when (result) {
                 is NetworkResult.Success -> {
                     weatherState = result.data
@@ -96,7 +96,7 @@ class WeatherWidget : GlanceAppWidget() {
                 //current = 5.0
             )
             Spacer(modifier = GlanceModifier.width(8.dp))
-            ConditionIconDisplay()
+            ConditionIconDisplay(weatherData?.condition)
             Spacer(modifier = GlanceModifier.width(8.dp))
             LocationDisplay(
                 city = weatherData?.location ?: "Unknown",
@@ -134,10 +134,20 @@ class WeatherWidget : GlanceAppWidget() {
 
     @SuppressLint("RestrictedApi")
     @Composable
-    fun ConditionIconDisplay() {
+    fun IconDisplay() {
         Image(
-            contentDescription = "A Meterial Icon",
-            provider = ImageProvider(R.drawable.rainy_wght200_24px),
+            contentDescription = "An Icon",
+            provider = ImageProvider(R.drawable.forecast_weather_cloudy_cloud),
+        )
+    }
+
+    @SuppressLint("RestrictedApi")
+    @Composable
+    fun ConditionIconDisplay(condition: WeatherCondition?) {
+        if (condition == null) return
+        Image(
+            contentDescription = "An Icon",
+            provider = ImageProvider(condition.getDrawableResId()),
         )
     }
 }

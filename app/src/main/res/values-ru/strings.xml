@@ -3,4 +3,12 @@
     <string name="app_name">Погода</string>
     <string name="feels_like">Ощущается как %1$s°C</string>
     <string name="app_widget_description">Всепогодный виджет</string>
+    <string name="clear_sky">Ясно</string>
+    <string name="mostly_clear">Малооблачно</string>
+    <string name="cloudy">Облачно</string>
+    <string name="light_rain">Легкий дождь</string>
+    <string name="heavy_rain">Дождь</string>
+    <string name="thunderstorm">Гроза</string>
+    <string name="snow">Снег</string>
+    <string name="fog">Туман</string>
 </resources>

@@ -10,20 +10,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import ru.burchik.myweatherapp.domain.util.WeatherIconMapper
+import ru.burchik.myweatherapp.domain.model.WeatherCondition
+import ru.burchik.myweatherapp.ui.common.IconResource
 
 @Composable
 fun WeatherIconByCondition(
-    condition: String,
+    condition: WeatherCondition,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
     isDay: Boolean = true,
     withBackground: Boolean = false,
     tint: Color = MaterialTheme.colorScheme.primary,
 ) {
-    val icon = WeatherIconMapper.getIconByCondition(condition, isDay)
+    //val icon = WeatherIconMapper.getIconByCondition(condition, isDay)
 
     if (withBackground) {
         Box(
@@ -36,16 +38,16 @@ fun WeatherIconByCondition(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = icon,
-                contentDescription = condition,
+                painter = IconResource.fromDrawableResource(condition.getDrawableResId()).asPainterResource(),
+                contentDescription = stringResource(condition.getStringResId()),
                 modifier = Modifier.size(size),
                 tint = tint
             )
         }
     } else {
         Icon(
-            imageVector = icon,
-            contentDescription = condition,
+            painter = IconResource.fromDrawableResource(condition.getDrawableResId()).asPainterResource(),
+            contentDescription = stringResource(condition.getStringResId()),
             modifier = modifier.size(size),
             tint = tint
         )

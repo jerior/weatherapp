@@ -1,14 +1,17 @@
-package ru.burchik.myweatherapp.data.mapper
+package ru.burchik.myweatherapp.data.source.remote.mapper
 
 import ru.burchik.myweatherapp.data.source.remote.dto.WeatherResponse
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.model.Weather
+import ru.burchik.myweatherapp.domain.model.WeatherCondition
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
 fun WeatherResponse.toWeather(): Weather {
+
+
     val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
     // Get hourly forecast for today only (next 24 hours from current time)
@@ -23,8 +26,7 @@ fun WeatherResponse.toWeather(): Weather {
             HourlyForecast(
                 time = formatHourTime(hour.time),
                 temperature = hour.tempC,
-                condition = hour.condition.text,
-                conditionIcon = "https:${hour.condition.icon}",
+                condition = codeToDomainCondition(hour.condition.code),
                 chanceOfRain = hour.chanceOfRain,
                 windSpeed = hour.windKph
             )
@@ -34,8 +36,7 @@ fun WeatherResponse.toWeather(): Weather {
         location = location.name,
         country = location.country,
         temperature = current.tempC,
-        condition = current.condition.text,
-        conditionIcon = "https:${current.condition.icon}",
+        condition = codeToDomainCondition(current.condition.code),
         humidity = current.humidity,
         windSpeed = current.windKph,
         feelsLike = current.feelsLikeC,
@@ -45,8 +46,7 @@ fun WeatherResponse.toWeather(): Weather {
                 date = day.date,
                 maxTemp = day.day.maxTempC,
                 minTemp = day.day.minTempC,
-                condition = day.day.condition.text,
-                conditionIcon = "https:${day.day.condition.icon}",
+                condition = codeToDomainCondition(day.day.condition.code),
                 chanceOfRain = day.day.chanceOfRain,
                 dateEpoch = day.dateEpoch
             )
@@ -66,4 +66,16 @@ private fun formatHourTime(timeString: String): String {
         //questionable :-)
         timeString.split(" ").getOrNull(1) ?: timeString
     }
+}
+
+fun codeToDomainCondition(code: Int) = when (code) {
+    1000, 1006 -> WeatherCondition.ClearSky
+    1003 -> WeatherCondition.MostlyClear
+    in 1009..1030 -> WeatherCondition.Cloudy
+    in 1150..1183 -> WeatherCondition.LightRain
+    in 1186..1200 -> WeatherCondition.HeavyRain
+    1279, 1282 -> WeatherCondition.Thunderstorm
+    1213, 1219 -> WeatherCondition.Snow
+    1135 -> WeatherCondition.Fog
+    else -> WeatherCondition.Cloudy // Fallback
 }

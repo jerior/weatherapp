@@ -2,4 +2,12 @@
     <string name="app_name">Weather</string>
     <string name="feels_like">Feels like %1$s°C</string>
     <string name="app_widget_description">Weather widget</string>
+    <string name="clear_sky">Clear</string>
+    <string name="mostly_clear">MostlyClear</string>
+    <string name="cloudy">Cloudy</string>
+    <string name="light_rain">LightRain</string>
+    <string name="heavy_rain">HeavyRain</string>
+    <string name="thunderstorm">Thunderstorm</string>
+    <string name="snow">Snow</string>
+    <string name="fog">Fog</string>
 </resources>

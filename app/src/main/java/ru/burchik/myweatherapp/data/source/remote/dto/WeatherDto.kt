@@ -1,7 +1,6 @@
 package ru.burchik.myweatherapp.data.source.remote.dto
 
 import com.google.gson.annotations.SerializedName
-import java.time.Instant
 
 data class WeatherResponse(
     val location: LocationDto,
@@ -22,7 +21,7 @@ data class CurrentWeatherDto(
     val humidity: Int,
     @SerializedName("wind_kph")
     val windKph: Double,
-    val condition: ConditionDto
+    val condition: ConditionDto,
 )
 
 data class ForecastDto(
@@ -61,5 +60,6 @@ data class DayDto(
 
 data class ConditionDto(
     val text: String,
-    val icon: String
+    val icon: String,
+    val code: Int,
 )

@@ -64,6 +64,7 @@ import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.model.Weather
+import ru.burchik.myweatherapp.domain.model.WeatherCondition
 import ru.burchik.myweatherapp.ui.theme.common.WeatherIconByCondition
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -302,8 +303,7 @@ private fun CurrentWeatherCardPreview() {
             location = "Москва",
             country = "Россия",
             temperature = 25.0,
-            condition = "rainy",
-            conditionIcon = "rainy",
+            condition = WeatherCondition.ClearSky,
             humidity = 87,
             windSpeed = 5.0,
             feelsLike = 7.4,
