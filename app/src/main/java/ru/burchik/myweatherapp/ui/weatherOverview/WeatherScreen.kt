@@ -46,6 +46,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,14 +58,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.glance.appwidget.updateAll
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.launch
 import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.domain.model.WeatherCondition
+import ru.burchik.myweatherapp.glance.WeatherWidget
 import ru.burchik.myweatherapp.ui.theme.common.WeatherIconByCondition
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,6 +79,7 @@ fun WeatherScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var hasLocationPermission by remember { mutableStateOf(false) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
@@ -86,6 +91,9 @@ fun WeatherScreen(
         if (hasLocationPermission) {
             getCurrentLocation(context) { location ->
                 viewModel.onEvent(WeatherEvent.SearchWeather(location))
+            }
+            scope.launch {
+                WeatherWidget().updateAll(context)
             }
         }
     }
@@ -101,6 +109,7 @@ fun WeatherScreen(
                 viewModel.onEvent(WeatherEvent.SearchWeather(it))
             }
         }
+        WeatherWidget().updateAll(context)
     }
 
     Scaffold(
@@ -128,6 +137,9 @@ fun WeatherScreen(
                     if (hasLocationPermission) {
                         getCurrentLocation(context) { location ->
                             viewModel.onEvent(WeatherEvent.SearchWeather(location))
+                            scope.launch {
+                                WeatherWidget().updateAll(context)
+                            }
                         }
                     } else {
                         locationPermissionLauncher.launch(
