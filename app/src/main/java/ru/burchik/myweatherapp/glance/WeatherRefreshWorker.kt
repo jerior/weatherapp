@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dagger.hilt.android.EntryPointAccessors
 import ru.burchik.myweatherapp.glance.WeatherWidget.WeatherProviderEntryPoint
+import timber.log.Timber
 
 class WeatherRefreshWorker(
     appContext: Context,
@@ -18,6 +19,7 @@ class WeatherRefreshWorker(
 
     override suspend fun doWork(): Result {
         val queryLocation = inputData.getString(KEY_LOCATION) ?: return Result.failure()
+        Timber.d("Query location: $queryLocation")
 
         val statisticsEntryPoint =
             EntryPointAccessors.fromApplication(
@@ -27,17 +29,20 @@ class WeatherRefreshWorker(
         val weatherRepository = statisticsEntryPoint.weatherRepository()
 
         try {
-            // Simulate fetching data
-            val newData = "Data fetched at ${System.currentTimeMillis()}"
+            // Fetching data
+            weatherRepository.getWeather("Yekaterinburg").collect {
+
+            }
 
             // Store data in DataStore
-            //weatherRepository.getWeather("Yekaterinburg").collect {  }
+
 
             // Update the Glance widget
             WeatherWidget().updateAll(applicationContext)
 
             return Result.success()
         } catch (e: Exception) {
+            Timber.e(e)
             return Result.failure()
         }
     }

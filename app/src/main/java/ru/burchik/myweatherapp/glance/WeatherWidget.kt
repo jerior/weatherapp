@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -13,6 +14,7 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.action.Action
 import androidx.glance.action.ActionParameters
+import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -34,6 +36,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontFamily
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -54,6 +57,8 @@ class WeatherWidget : GlanceAppWidget() {
 
     override val sizeMode = SizeMode.Exact
 
+    val stateLocationParam = ActionParameters.Key<String>("location")
+
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface WeatherProviderEntryPoint {
@@ -62,7 +67,8 @@ class WeatherWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
 
-        var weatherState = Weather(
+        //todo not a state, just weatherData
+        var weatherData = Weather(
             location = "Moscow",
             country = "Russia",
             temperature = 0.0,
@@ -82,19 +88,21 @@ class WeatherWidget : GlanceAppWidget() {
             )
         val weatherRepository = statisticsEntryPoint.weatherRepository()
 
+        //val stateLocation =
+
         weatherRepository.getWeather("Phuket").collect { result ->
             when (result) {
                 is NetworkResult.Success -> {
-                    weatherState = result.data
+                    weatherData = result.data
                 }
-
-                else -> {}
+                is NetworkResult.Error -> {}
+                is NetworkResult.Loading -> {}
             }
         }
 
         provideContent {
             GlanceTheme {
-                WidgetContent(weatherState)
+                WidgetContent(weatherData)
             }
         }
     }
@@ -103,9 +111,9 @@ class WeatherWidget : GlanceAppWidget() {
     fun WidgetMicroContent(weatherData: Weather?) {
         Box(
             modifier = GlanceModifier
-                //.background(MaterialTheme.colorScheme.surface)
+                .background(ImageProvider(R.drawable.rounded_background))
                 .fillMaxSize(),
-            contentAlignment = Alignment.Center
+            //contentAlignment = Alignment.TopCenter
         ) {
             TemperatureDisplay(
                 modifier = GlanceModifier
@@ -113,7 +121,8 @@ class WeatherWidget : GlanceAppWidget() {
                 current = weatherData?.temperature ?: -100.0
             )
             ConditionIconDisplay(
-                modifier = GlanceModifier.size(76.dp).padding(top = 42.dp, start = 10.dp),
+                modifier = GlanceModifier.size(62.dp).padding(top = 34.dp, start = 8.dp),
+                //modifier = GlanceModifier.size(42.dp).padding(bottom = 4.dp, end = 4.dp),
                 condition = weatherData?.condition
             )
         }
@@ -125,6 +134,7 @@ class WeatherWidget : GlanceAppWidget() {
             modifier = GlanceModifier
                 .fillMaxSize()
                 //.background(MaterialTheme.colorScheme.surface) //Android s+
+                //.background(ColorProvider(R.color.widget_background)), //Android 12-
                 .background(ImageProvider(R.drawable.rounded_background)), //Android 12-
             //.padding(horizontal = 6.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -180,13 +190,21 @@ class WeatherWidget : GlanceAppWidget() {
         Row(
             modifier = modifier
                 //.background(ImageProvider(R.drawable.rounded_background))
-                .clickable(actionRunCallback<RunActivityCallback>()),
+                .clickable(actionRunCallback<RunActivityCallback>(
+                    actionParametersOf(
+                        stateLocationParam to "Yekaterinburg"
+                    )
+                )),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "${current?.toInt() ?: "--"}",
-                style = TextStyle(fontSize = 40.sp, fontFamily = FontFamily.Serif)
+                style = TextStyle(
+                    fontSize = 40.sp,
+                    fontFamily = FontFamily.Serif,
+                    color = ColorProvider(R.color.widget_text_primary)
+                )
             )
             Box {
                 Text(
@@ -194,7 +212,8 @@ class WeatherWidget : GlanceAppWidget() {
                     text = "°",
                     style = TextStyle(
                         fontSize = 40.sp,
-                        fontFamily = FontFamily.Serif
+                        fontFamily = FontFamily.Serif,
+                        color = ColorProvider(R.color.widget_text_primary)
                     ),
                 )
                 /*              Text(
@@ -223,9 +242,9 @@ class WeatherWidget : GlanceAppWidget() {
                     onClick
                 )
         ) {
-            Text(city, modifier = GlanceModifier, style = TextStyle(fontSize = 18.sp))
+            Text(city, modifier = GlanceModifier, style = TextStyle(fontSize = 18.sp,color = ColorProvider(R.color.widget_text_primary)))
             Spacer(modifier = GlanceModifier.width(6.dp))
-            Text(country, modifier = GlanceModifier, style = TextStyle(fontSize = 14.sp))
+            Text(country, modifier = GlanceModifier, style = TextStyle(fontSize = 14.sp, color = ColorProvider(R.color.widget_text_primary)))
         }
     }
 
@@ -239,7 +258,10 @@ class WeatherWidget : GlanceAppWidget() {
         Image(
             modifier = modifier,
             contentDescription = "An Icon",
-            provider = ImageProvider(condition.getDrawableResId())
+            provider = ImageProvider(condition.getDrawableResId()),
+            colorFilter = ColorFilter.tint(
+                colorProvider = ColorProvider(R.color.widget_text_primary)
+            )
         )
     }
 
@@ -282,7 +304,7 @@ class WeatherWidget : GlanceAppWidget() {
             Text(
                 "${forecastDay.maxTemp.toInt()}/${forecastDay.minTemp.toInt()}°",
                 modifier = GlanceModifier,
-                style = TextStyle(fontSize = 14.sp)
+                style = TextStyle(fontSize = 14.sp, color = ColorProvider(R.color.widget_text_primary))
             )
         }
     }
@@ -294,24 +316,18 @@ class RunActivityCallback : ActionCallback {
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
+        val locationParam = parameters[ActionParameters.Key<String>("location")]
+
+        //Timber.d("Widget update fo location : $locationState = "Yekaterinburg")
+        //val locationState = ActionParameters.Key<String>("my-string-key")
+
         val inputData = Data.Builder()
-            //.putString(WeatherRefreshWorker.KEY_LOCATION, parameters[WeatherRefreshWorker.KEY_LOCATION])
+            .putString(WeatherRefreshWorker.KEY_LOCATION, locationParam)
             .build()
         Timber.d("Widget update fo location :")
         val refreshWorkRequest = OneTimeWorkRequestBuilder<WeatherRefreshWorker>()
             .setInputData(inputData)
             .build()
         WorkManager.getInstance(context).enqueue(refreshWorkRequest)
-        //WeatherWidget().updateAll(context)
     }
 }
-/*
-suspend fun updateWidget(locationQuery: String, context: Context) {
-    // Iterate through all the available glance id's.
-    GlanceAppWidgetManager(context).getGlanceIds(WeatherWidget::class.java).forEach { glanceId ->
-        updateAppWidgetState(context, glanceId) { prefs ->
-            prefs[stringPreferencesKey("location")] = locationQuery //new value
-        }
-    }
-    WeatherWidget().updateAll(context)
-}*/
