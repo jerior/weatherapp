@@ -1,5 +1,8 @@
 package ru.burchik.myweatherapp.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Weather(
     val location: String,
     val country: String,
@@ -12,6 +15,7 @@ data class Weather(
     val forecast: List<ForecastDay>
 )
 
+@Serializable
 data class HourlyForecast(
     val time: String,
     val temperature: Double,
@@ -20,6 +24,7 @@ data class HourlyForecast(
     val windSpeed: Double
 )
 
+@Serializable
 data class ForecastDay(
     val date: String,
     val dateEpoch: Long,

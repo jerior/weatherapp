@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id ("com.google.devtools.ksp")
     id ("com.google.dagger.hilt.android")
+    id ("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -64,6 +65,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.material3)
+
+    // Kotlinx Serialization
+    implementation(libs.kotlinx.serialization.json)
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
 
     //hilt
     implementation(libs.hilt.android)

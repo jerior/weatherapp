@@ -5,6 +5,8 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.Preferences
+import androidx.glance.Button
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -23,6 +25,7 @@ import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -33,76 +36,34 @@ import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.text.FontFamily
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
 import ru.burchik.myweatherapp.MainActivity
 import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.domain.model.WeatherCondition
 import ru.burchik.myweatherapp.domain.repository.WeatherRepository
-import ru.burchik.myweatherapp.domain.util.NetworkResult
+import ru.burchik.myweatherapp.utils.WeatherSerializer
 import timber.log.Timber
 
 class WeatherWidget : GlanceAppWidget() {
 
     override val sizeMode = SizeMode.Exact
+    override val stateDefinition: GlanceStateDefinition<Preferences> = WeatherStateDefinition
 
     val stateLocationParam = ActionParameters.Key<String>("location")
 
-    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    interface WeatherProviderEntryPoint {
-        fun weatherRepository(): WeatherRepository
-    }
-
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-
-        //todo not a state, just weatherData
-        var weatherData = Weather(
-            location = "Moscow",
-            country = "Russia",
-            temperature = 0.0,
-            condition = WeatherCondition.ClearSky,
-            humidity = 0,
-            windSpeed = 0.0,
-            feelsLike = 0.0,
-            hourlyForecast = listOf(),
-            forecast = listOf()
-        )
-
-        val appContext = context.applicationContext ?: throw IllegalStateException()
-        val statisticsEntryPoint =
-            EntryPointAccessors.fromApplication(
-                appContext,
-                WeatherProviderEntryPoint::class.java,
-            )
-        val weatherRepository = statisticsEntryPoint.weatherRepository()
-
-        //val stateLocation =
-
-        weatherRepository.getWeather("Phuket").collect { result ->
-            when (result) {
-                is NetworkResult.Success -> {
-                    weatherData = result.data
-                }
-                is NetworkResult.Error -> {}
-                is NetworkResult.Loading -> {}
-            }
-        }
-
         provideContent {
             GlanceTheme {
-                WidgetContent(weatherData)
+                WidgetContent()
             }
         }
     }
@@ -172,13 +133,71 @@ class WeatherWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun WidgetContent(weatherData: Weather?) {
+    private fun WidgetContent(/*weatherData: Weather?*/) {
+        val prefs = currentState<Preferences>()
+
+        val weatherJson = prefs[WeatherPrefsKeys.WEATHER_JSON]
+        val errorMessage = prefs[WeatherPrefsKeys.ERROR_MESSAGE]
+        val lastUpdate = prefs[WeatherPrefsKeys.LAST_UPDATE] ?: 0L
+
+// todo WHEN
+        Timber.d("weatherJson: ${weatherJson}")
+
+        if (weatherJson == null) {
+            ErrorView(errorMessage ?: "Failed to load weather data")
+            return
+        }
+
+        val weatherData = WeatherSerializer.fromJson(weatherJson)
+        if (weatherData != null) {
+            //WeatherDetailsView(weather, lastUpdate)
+            val size = LocalSize.current
+            Timber.d("Size: ${size}")
+            if (size.width > 100.dp) {
+                WidgetNormalContent(weatherData)
+            } else {
+                WidgetMicroContent(weatherData)
+            }
+        } else {
+            ErrorView("Failed to load weather data")
+        }
+
         val size = LocalSize.current
         Timber.d("Size: ${size}")
         if (size.width > 100.dp) {
             WidgetNormalContent(weatherData)
         } else {
             WidgetMicroContent(weatherData)
+        }
+    }
+
+    @Composable
+    private fun ErrorView(message: String) {
+        Column(
+            modifier = GlanceModifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = message,
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                )
+            )
+            //Spacer(modifier = GlanceModifier.height(4.dp))
+            Row() {
+                Text(
+                    text = "⚠️",
+                    style = TextStyle(fontSize = 32.sp)
+                )
+                Spacer(modifier = GlanceModifier.defaultWeight())
+                Button(
+                    text = "Retry",
+                    onClick = actionRunCallback<RefreshAction>()
+                )
+            }
+
         }
     }
 
@@ -316,17 +335,8 @@ class RunActivityCallback : ActionCallback {
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
-        val locationParam = parameters[ActionParameters.Key<String>("location")]
-
-        //Timber.d("Widget update fo location : $locationState = "Yekaterinburg")
-        //val locationState = ActionParameters.Key<String>("my-string-key")
-
-        val inputData = Data.Builder()
-            .putString(WeatherRefreshWorker.KEY_LOCATION, locationParam)
-            .build()
         Timber.d("Widget update fo location :")
-        val refreshWorkRequest = OneTimeWorkRequestBuilder<WeatherRefreshWorker>()
-            .setInputData(inputData)
+        val refreshWorkRequest = OneTimeWorkRequestBuilder<WeatherUpdateWorker>()
             .build()
         WorkManager.getInstance(context).enqueue(refreshWorkRequest)
     }
