@@ -7,5 +7,7 @@ data class WeatherState(
     val weather: Weather? = null,
     val error: String = "",
     val searchQuery: String = "Москва",
-    val lastSearchedLocation: String = "Москва",
+    val lastSearchedLocation: String = "Москва", //?? do we need that?
+    val isLocationBased: Boolean = true,
+    val isSearchBarVisible: Boolean = false
 )

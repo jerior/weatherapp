@@ -31,5 +31,6 @@ object WeatherStateDefinition : GlanceStateDefinition<Preferences> {
 object WeatherPrefsKeys {
     val WEATHER_JSON = stringPreferencesKey("weather_json")
     val LAST_UPDATE = longPreferencesKey("last_update")
+    val LAST_LOCATION = stringPreferencesKey("last_location")
     val ERROR_MESSAGE = stringPreferencesKey("error_message")
 }

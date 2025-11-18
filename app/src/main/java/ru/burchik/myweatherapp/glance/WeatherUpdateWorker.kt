@@ -14,16 +14,12 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import ru.burchik.myweatherapp.BuildConfig
 import ru.burchik.myweatherapp.data.source.remote.api.WeatherApi
 import ru.burchik.myweatherapp.data.source.remote.mapper.toWeather
 import ru.burchik.myweatherapp.domain.model.Weather
-import ru.burchik.myweatherapp.domain.repository.WeatherRepository
-import ru.burchik.myweatherapp.domain.util.NetworkResult
 import ru.burchik.myweatherapp.utils.WeatherSerializer
 import timber.log.Timber
 
@@ -47,6 +43,7 @@ class WeatherUpdateWorker(
     @SuppressLint("MissingPermission", "RestrictedApi")
     override suspend fun doWork(): Result {
         Timber.d("Starting weather update")
+
         // 1. Get location
         val fusedLocationClient =
             LocationServices.getFusedLocationProviderClient(applicationContext)
@@ -59,7 +56,7 @@ class WeatherUpdateWorker(
 
                 // 2. Fetch weather data (your existing repository)
                 CoroutineScope(Dispatchers.IO).launch {
-                    val weather = fetchWeatherDataDirectlyFromApi(locationString)
+                    val weather = fetchWeatherDataDirectlyFromApi(location = locationString, lastLocation = "MOSCOW")
                     Timber.d("Weather: $weather")
                     //if (weather != null) {
                         updateWeatherState(weather)
@@ -70,7 +67,6 @@ class WeatherUpdateWorker(
         // If we reach here, no success result was emitted
         updateErrorState("Failed to fetch weather data")
         return Result.Failure()
-
     }
 
 
@@ -103,7 +99,7 @@ class WeatherUpdateWorker(
                 ?.data
         }*/
 
-    private suspend fun fetchWeatherDataDirectlyFromApi(location: String?): Weather =
+    private suspend fun fetchWeatherDataDirectlyFromApi(location: String?, lastLocation: String = ""): Weather =
         withContext(Dispatchers.IO) {
             val apiEntryPoint =
                 EntryPointAccessors.fromApplication(
@@ -112,7 +108,7 @@ class WeatherUpdateWorker(
                 )
             val weatherApi = apiEntryPoint.weatherApi()
 
-            weatherApi.getWeather(BuildConfig.weatherapi_apikey, location ?: "Moscow", 3)
+            weatherApi.getWeather(BuildConfig.weatherapi_apikey, location ?: lastLocation, 3)
                 .toWeather()
 
         }
@@ -129,6 +125,7 @@ class WeatherUpdateWorker(
                 updateAppWidgetState(applicationContext, glanceId) { prefs ->
                     prefs[WeatherPrefsKeys.WEATHER_JSON] = weatherJson
                     prefs[WeatherPrefsKeys.LAST_UPDATE] = System.currentTimeMillis()
+                    prefs[WeatherPrefsKeys.LAST_LOCATION] = weather.location
                     prefs[WeatherPrefsKeys.ERROR_MESSAGE] = "" // Clear error
                 }
                 WeatherWidget().update(applicationContext, glanceId)

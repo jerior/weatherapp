@@ -49,7 +49,6 @@ import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.domain.model.WeatherCondition
-import ru.burchik.myweatherapp.domain.repository.WeatherRepository
 import ru.burchik.myweatherapp.utils.WeatherSerializer
 import timber.log.Timber
 
@@ -139,11 +138,19 @@ class WeatherWidget : GlanceAppWidget() {
         val weatherJson = prefs[WeatherPrefsKeys.WEATHER_JSON]
         val errorMessage = prefs[WeatherPrefsKeys.ERROR_MESSAGE]
         val lastUpdate = prefs[WeatherPrefsKeys.LAST_UPDATE] ?: 0L
+        val lastLocation = prefs[WeatherPrefsKeys.LAST_LOCATION] ?: "Yekaterinburg"
 
 // todo WHEN
         Timber.d("weatherJson: ${weatherJson}")
 
         if (weatherJson == null) {
+            if (lastUpdate < System.currentTimeMillis() - 60 * 60 * 1000) {
+                actionRunCallback<RunActivityCallback>(
+                    actionParametersOf(
+                        stateLocationParam to "Yekaterinburg"
+                    )
+                )
+            }
             ErrorView(errorMessage ?: "Failed to load weather data")
             return
         }
@@ -152,7 +159,6 @@ class WeatherWidget : GlanceAppWidget() {
         if (weatherData != null) {
             //WeatherDetailsView(weather, lastUpdate)
             val size = LocalSize.current
-            Timber.d("Size: ${size}")
             if (size.width > 100.dp) {
                 WidgetNormalContent(weatherData)
             } else {
@@ -162,13 +168,13 @@ class WeatherWidget : GlanceAppWidget() {
             ErrorView("Failed to load weather data")
         }
 
-        val size = LocalSize.current
+/*        val size = LocalSize.current
         Timber.d("Size: ${size}")
         if (size.width > 100.dp) {
             WidgetNormalContent(weatherData)
         } else {
             WidgetMicroContent(weatherData)
-        }
+        }*/
     }
 
     @Composable
@@ -201,6 +207,7 @@ class WeatherWidget : GlanceAppWidget() {
         }
     }
 
+    @SuppressLint("RestrictedApi")
     @Composable
     fun TemperatureDisplay(
         current: Double?,

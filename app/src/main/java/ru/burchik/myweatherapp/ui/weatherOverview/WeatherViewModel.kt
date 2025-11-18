@@ -23,21 +23,35 @@ class WeatherViewModel @Inject constructor(
 
     fun onEvent(event: WeatherEvent) {
         when (event) {
-            is WeatherEvent.SearchWeather -> {
+            is WeatherEvent.GetWeatherByQuery -> {
                 searchWeather(event.location)
-                _state.update { it.copy(lastSearchedLocation = event.location, searchQuery = event.location) }
+                _state.update { it.copy(lastSearchedLocation = event.location, searchQuery = event.location, isLocationBased = false) }
+            }
+            is WeatherEvent.GetWeatherByLocation -> {
+                searchWeather(event.location)
+                _state.update { it.copy(lastSearchedLocation = event.location, searchQuery = event.location, isLocationBased = true) }
             }
             is WeatherEvent.UpdateSearchQuery -> {
                 _state.update { it.copy(searchQuery = event.query) }
             }
             is WeatherEvent.RetryLastSearch -> {
+                if (_state.value.isLocationBased) {
+                    searchWeather(_state.value.lastSearchedLocation)
+                    return
+                }
                 searchWeather(_state.value.lastSearchedLocation)
+            }
+            is WeatherEvent.ToggleLocationBasedSearch -> {
+                _state.update { it.copy(isLocationBased = !_state.value.isLocationBased) }
+            }
+            is WeatherEvent.ToggleSearchBarVisibility -> {
+                _state.update { it.copy(isSearchBarVisible = !_state.value.isSearchBarVisible) }
             }
         }
     }
 
     private fun searchWeather(location: String) {
-        if (location.isBlank()) {
+        if (location.isNullOrBlank()) {
             _state.update { it.copy(error = "В запросе нет данных о местопложении") }
             return
         }

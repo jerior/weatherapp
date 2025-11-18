@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +24,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddLocation
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Button
@@ -38,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -55,7 +59,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.glance.appwidget.updateAll
@@ -67,7 +70,6 @@ import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.model.Weather
-import ru.burchik.myweatherapp.domain.model.WeatherCondition
 import ru.burchik.myweatherapp.glance.WeatherWidget
 import ru.burchik.myweatherapp.ui.theme.common.WeatherIconByCondition
 
@@ -90,7 +92,7 @@ fun WeatherScreen(
 
         if (hasLocationPermission) {
             getCurrentLocation(context) { location ->
-                viewModel.onEvent(WeatherEvent.SearchWeather(location))
+                viewModel.onEvent(WeatherEvent.GetWeatherByLocation(location))
             }
             scope.launch {
                 WeatherWidget().updateAll(context)
@@ -105,9 +107,16 @@ fun WeatherScreen(
         ) == PackageManager.PERMISSION_GRANTED
 
         if (hasLocationPermission) {
-            getCurrentLocation(context) {
-                viewModel.onEvent(WeatherEvent.SearchWeather(it))
+            getCurrentLocation(context) { location ->
+                viewModel.onEvent(WeatherEvent.GetWeatherByLocation(location))
             }
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
         }
         WeatherWidget().updateAll(context)
     }
@@ -129,28 +138,34 @@ fun WeatherScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            SearchBar(
-                query = state.searchQuery,
-                onQueryChange = { viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it)) },
-                onSearch = { viewModel.onEvent(WeatherEvent.SearchWeather(it)) },
-                onLocationBasedQuery = {
-                    if (hasLocationPermission) {
-                        getCurrentLocation(context) { location ->
-                            viewModel.onEvent(WeatherEvent.SearchWeather(location))
-                            scope.launch {
-                                WeatherWidget().updateAll(context)
+            if (state.isSearchBarVisible) {
+                SearchBar(
+                    query = state.searchQuery,
+                    onQueryChange = {
+                        viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
+                    },
+                    onQuerySearch = {
+                        viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
+                    },
+                    onLocationSearch = {
+                        if (hasLocationPermission) {
+                            getCurrentLocation(context) { location ->
+                                viewModel.onEvent(WeatherEvent.GetWeatherByLocation(location))
+                                scope.launch {
+                                    WeatherWidget().updateAll(context)
+                                }
                             }
-                        }
-                    } else {
-                        locationPermissionLauncher.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
+                        } else {
+                            locationPermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
                             )
-                        )
+                        }
                     }
-                }
-            )
+                )
+            }
 
             when {
                 state.isLoading -> {
@@ -165,7 +180,23 @@ fun WeatherScreen(
                 }
 
                 state.weather != null -> {
-                    WeatherContent(weather = state.weather!!)
+                    WeatherContent(
+                        weatherState = state,
+                        onHeaderClick = {
+                            viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
+                        }
+                    )
+                }
+
+                state.weather == null -> {
+                    if (state.isLocationBased) {
+                        getCurrentLocation(context) { location ->
+                            viewModel.onEvent(WeatherEvent.GetWeatherByLocation(location))
+                        }
+                    } else {
+                        viewModel.onEvent(WeatherEvent.GetWeatherByQuery(state.lastSearchedLocation))
+                    }
+
                 }
             }
         }
@@ -186,8 +217,8 @@ fun getCurrentLocation(context: android.content.Context, onLocationReceived: (St
 fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
-    onSearch: (String) -> Unit,
-    onLocationBasedQuery: () -> Unit,
+    onQuerySearch: (String) -> Unit,
+    onLocationSearch: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -205,7 +236,7 @@ fun SearchBar(
             trailingIcon = {
                 Row() {
                     IconButton(
-                        onClick = { onSearch(query) },
+                        onClick = { onQuerySearch(query) },
                         modifier = Modifier
                     ) {
                         Icon(
@@ -214,11 +245,11 @@ fun SearchBar(
                         )
                     }
                     IconButton(
-                        onClick = { onLocationBasedQuery() },
+                        onClick = { onLocationSearch() },
                         modifier = Modifier
                     ) {
                         Icon(
-                            imageVector = Icons.Default.AddLocation,
+                            imageVector = Icons.Default.LocationOn,
                             contentDescription = "Search"
                         )
                     }
@@ -285,29 +316,55 @@ fun ErrorContent(
 }
 
 @Composable
-fun WeatherContent(weather: Weather) {
+fun IconSwitchButton() {
+    var checked by remember { mutableStateOf(false) }
+
+    Switch(
+        checked = checked,
+        onCheckedChange = { checked = it },
+        thumbContent = {
+            if (checked) {
+                Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = "Checked"
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.TextFields,
+                    contentDescription = "Unchecked"
+                )
+            }
+        }
+    )
+}
+
+@Composable
+fun WeatherContent(
+    weatherState: WeatherState,
+    onHeaderClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        CurrentWeatherCard(weather)
+        CurrentWeatherCard(weatherState, onHeaderClick = onHeaderClick)
         Spacer(modifier = Modifier.height(8.dp))
-        WeatherDetailsCard(weather)
+        WeatherDetailsCard(weatherState.weather!!)
 
         // Add Hourly Forecast Section
-        if (weather.hourlyForecast.isNotEmpty()) {
+        if (weatherState.weather.hourlyForecast.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
-            HourlyForecastSection(hourlyForecast = weather.hourlyForecast)
+            HourlyForecastSection(hourlyForecast = weatherState.weather.hourlyForecast)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        ForecastFixedSection(forecast = weather.forecast)
+        ForecastFixedSection(forecast = weatherState.weather.forecast)
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
-@Preview
+/*@Preview
 @Composable
 private fun CurrentWeatherCardPreview() {
     CurrentWeatherCard(
@@ -323,11 +380,12 @@ private fun CurrentWeatherCardPreview() {
             forecast = listOf()
         )
     )
-}
+}*/
 
 @Composable
 fun CurrentWeatherCard(
-    weather: Weather
+    weatherState: WeatherState,
+    onHeaderClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -343,13 +401,25 @@ fun CurrentWeatherCard(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Row(
+                    modifier = Modifier.clickable {
+                        onHeaderClick()
+                    },
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "${weather.location}, ${weather.country}",
+                        text = "${weatherState.weather?.location}, ${weatherState.weather?.country}",
                         style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
                     )
+                    Spacer(Modifier.width(8.dp))
+                    if (weatherState.isLocationBased) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null
+                        )
+                    }
+
                 }
                 Spacer(modifier = Modifier.height(24.dp))
                 /*                Text(
@@ -359,11 +429,11 @@ fun CurrentWeatherCard(
                                 )*/
                 WeatherIconByCondition(
                     modifier = Modifier.alpha(0.5f),
-                    condition = weather.condition,
+                    condition = weatherState.weather!!.condition,
                     size = 64.dp
                 )
                 Text(
-                    text = "${weather.temperature.toInt()}°C",
+                    text = "${weatherState.weather.temperature.toInt()}°C",
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -373,7 +443,10 @@ fun CurrentWeatherCard(
                                 )*/
                 Text(
                     //text = "Ощущается как ${weather.feelsLike.toInt()}°C",
-                    text = stringResource(R.string.feels_like, weather.feelsLike.toInt()),
+                    text = stringResource(
+                        R.string.feels_like,
+                        weatherState.weather.feelsLike.toInt()
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
