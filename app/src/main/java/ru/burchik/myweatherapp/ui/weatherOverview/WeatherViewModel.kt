@@ -8,14 +8,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import ru.burchik.myweatherapp.data.source.remote.base.NetworkErrorHandler
 import ru.burchik.myweatherapp.domain.util.NetworkResult
 import ru.burchik.myweatherapp.domain.repository.WeatherRepository
+import ru.burchik.myweatherapp.utils.LocationProvider
 import javax.inject.Inject
 
 @HiltViewModel
 class WeatherViewModel @Inject constructor(
-    private val repository: WeatherRepository
+    private val repository: WeatherRepository,
+    private val locationProvider: LocationProvider
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WeatherState())
@@ -28,8 +31,7 @@ class WeatherViewModel @Inject constructor(
                 _state.update { it.copy(lastSearchedLocation = event.location, searchQuery = event.location, isLocationBased = false) }
             }
             is WeatherEvent.GetWeatherByLocation -> {
-                searchWeather(event.location)
-                _state.update { it.copy(lastSearchedLocation = event.location, searchQuery = event.location, isLocationBased = true) }
+                getWeatherByLocation()
             }
             is WeatherEvent.UpdateSearchQuery -> {
                 _state.update { it.copy(searchQuery = event.query) }
@@ -46,6 +48,42 @@ class WeatherViewModel @Inject constructor(
             }
             is WeatherEvent.ToggleSearchBarVisibility -> {
                 _state.update { it.copy(isSearchBarVisible = !_state.value.isSearchBarVisible) }
+            }
+        }
+    }
+
+    private fun getWeatherByLocation() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = "") }
+
+            try {
+                val location = locationProvider.getCurrentLocation()
+                if (location != null) {
+                    val locationString = "${location.latitude},${location.longitude}"
+                    searchWeather(locationString)
+
+                    //getWeatherByLocation(locationString)
+                    _state.update {
+                        it.copy(
+                            isLocationBased = true,
+                            lastSearchedLocation = locationString
+                        )
+                    }
+                } else {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Не удалось получить местоположение. Проверьте разрешения."
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Ошибка получения местоположения: ${e.message}"
+                    )
+                }
             }
         }
     }

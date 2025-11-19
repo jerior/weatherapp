@@ -13,12 +13,16 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import timber.log.Timber
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
+@Module
+@InstallIn(SingletonComponent::class)
 class LocationProvider(private val context: Context) {
 
     private val fusedLocationClient: FusedLocationProviderClient =
@@ -40,8 +44,9 @@ class LocationProvider(private val context: Context) {
                     if (location != null) {
                         continuation.resume(location)
                     } else {
+                        Timber.e("No last known location!")
                         // If no last location, request current location
-                        requestCurrentLocation(continuation)
+                        //requestCurrentLocation(continuation)
                     }
                 }
                 .addOnFailureListener { exception ->

@@ -138,16 +138,15 @@ class WeatherWidget : GlanceAppWidget() {
         val weatherJson = prefs[WeatherPrefsKeys.WEATHER_JSON]
         val errorMessage = prefs[WeatherPrefsKeys.ERROR_MESSAGE]
         val lastUpdate = prefs[WeatherPrefsKeys.LAST_UPDATE] ?: 0L
-        val lastLocation = prefs[WeatherPrefsKeys.LAST_LOCATION] ?: "Yekaterinburg"
+        val lastLocation = prefs[WeatherPrefsKeys.LOCATION] ?: "Yekaterinburg"
 
-// todo WHEN
         Timber.d("weatherJson: ${weatherJson}")
 
         if (weatherJson == null) {
             if (lastUpdate < System.currentTimeMillis() - 60 * 60 * 1000) {
                 actionRunCallback<RunActivityCallback>(
                     actionParametersOf(
-                        stateLocationParam to "Yekaterinburg"
+                        stateLocationParam to lastLocation,
                     )
                 )
             }
@@ -167,14 +166,6 @@ class WeatherWidget : GlanceAppWidget() {
         } else {
             ErrorView("Failed to load weather data")
         }
-
-/*        val size = LocalSize.current
-        Timber.d("Size: ${size}")
-        if (size.width > 100.dp) {
-            WidgetNormalContent(weatherData)
-        } else {
-            WidgetMicroContent(weatherData)
-        }*/
     }
 
     @Composable
@@ -218,7 +209,7 @@ class WeatherWidget : GlanceAppWidget() {
                 //.background(ImageProvider(R.drawable.rounded_background))
                 .clickable(actionRunCallback<RunActivityCallback>(
                     actionParametersOf(
-                        stateLocationParam to "Yekaterinburg"
+                        stateLocationParam to "Yekaterinburg" //todo
                     )
                 )),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -242,11 +233,6 @@ class WeatherWidget : GlanceAppWidget() {
                         color = ColorProvider(R.color.widget_text_primary)
                     ),
                 )
-                /*              Text(
-                                  text = "C",
-                                  style = TextStyle(fontSize = 20.sp),
-                                  modifier = GlanceModifier.padding(top = 16.dp, start = 2.dp)
-                              )*/
             }
         }
     }

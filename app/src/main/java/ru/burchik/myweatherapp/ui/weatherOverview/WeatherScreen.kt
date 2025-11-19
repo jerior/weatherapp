@@ -1,10 +1,5 @@
 package ru.burchik.myweatherapp.ui.weatherOverview
 
-import android.Manifest
-import android.annotation.SuppressLint
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +18,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -46,31 +40,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.glance.appwidget.updateAll
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.location.LocationServices
-import kotlinx.coroutines.launch
 import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.model.Weather
-import ru.burchik.myweatherapp.glance.WeatherWidget
 import ru.burchik.myweatherapp.ui.theme.common.WeatherIconByCondition
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,46 +66,6 @@ fun WeatherScreen(
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var hasLocationPermission by remember { mutableStateOf(false) }
-
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-
-        if (hasLocationPermission) {
-            getCurrentLocation(context) { location ->
-                viewModel.onEvent(WeatherEvent.GetWeatherByLocation(location))
-            }
-            scope.launch {
-                WeatherWidget().updateAll(context)
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        hasLocationPermission = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (hasLocationPermission) {
-            getCurrentLocation(context) { location ->
-                viewModel.onEvent(WeatherEvent.GetWeatherByLocation(location))
-            }
-        } else {
-            locationPermissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
-        }
-        WeatherWidget().updateAll(context)
-    }
 
     Scaffold(
         topBar = {
@@ -148,21 +94,7 @@ fun WeatherScreen(
                         viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
                     },
                     onLocationSearch = {
-                        if (hasLocationPermission) {
-                            getCurrentLocation(context) { location ->
-                                viewModel.onEvent(WeatherEvent.GetWeatherByLocation(location))
-                                scope.launch {
-                                    WeatherWidget().updateAll(context)
-                                }
-                            }
-                        } else {
-                            locationPermissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                                )
-                            )
-                        }
+                        viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
                     }
                 )
             }
@@ -190,25 +122,13 @@ fun WeatherScreen(
 
                 state.weather == null -> {
                     if (state.isLocationBased) {
-                        getCurrentLocation(context) { location ->
-                            viewModel.onEvent(WeatherEvent.GetWeatherByLocation(location))
-                        }
+                        viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
                     } else {
                         viewModel.onEvent(WeatherEvent.GetWeatherByQuery(state.lastSearchedLocation))
                     }
 
                 }
             }
-        }
-    }
-}
-
-@SuppressLint("MissingPermission")
-fun getCurrentLocation(context: android.content.Context, onLocationReceived: (String) -> Unit) {
-    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-    fusedLocationClient.lastLocation.addOnSuccessListener {
-        if (it != null) {
-            onLocationReceived("${it.latitude},${it.longitude}")
         }
     }
 }

@@ -20,6 +20,7 @@ import ru.burchik.myweatherapp.BuildConfig
 import ru.burchik.myweatherapp.data.source.remote.api.WeatherApi
 import ru.burchik.myweatherapp.data.source.remote.mapper.toWeather
 import ru.burchik.myweatherapp.domain.model.Weather
+import ru.burchik.myweatherapp.utils.LocationProvider
 import ru.burchik.myweatherapp.utils.WeatherSerializer
 import timber.log.Timber
 
@@ -34,35 +35,16 @@ class WeatherUpdateWorker(
         fun weatherApi(): WeatherApi
     }
 
-/*    @EntryPoint
-    @InstallIn(SingletonComponent::class)
-    interface WeatherProviderEntryPoint {
-        fun weatherRepository(): WeatherRepository
-    }*/
-
     @SuppressLint("MissingPermission", "RestrictedApi")
     override suspend fun doWork(): Result {
         Timber.d("Starting weather update")
 
-        // 1. Get location
-        val fusedLocationClient =
-            LocationServices.getFusedLocationProviderClient(applicationContext)
-
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location: Location? ->
-                // Got last known location. In some rare situations this can be null.
-                val locationString = location?.let { "${it.latitude},${it.longitude}" }
-                Timber.d("Location: $locationString")
-
-                // 2. Fetch weather data (your existing repository)
-                CoroutineScope(Dispatchers.IO).launch {
-                    val weather = fetchWeatherDataDirectlyFromApi(location = locationString, lastLocation = "MOSCOW")
-                    Timber.d("Weather: $weather")
-                    //if (weather != null) {
-                        updateWeatherState(weather)
-                    //}
-                }
-            }
+        val loc = LocationProvider(applicationContext).getCurrentLocation()?.let{ "${it.latitude},${it.longitude}" }  ?: "Moscow"
+        CoroutineScope(Dispatchers.IO).launch {
+            val weather = fetchWeatherDataDirectlyFromApi(location = loc)
+            Timber.d("Weather: $weather")
+            updateWeatherState(weather)
+        }
 
         // If we reach here, no success result was emitted
         updateErrorState("Failed to fetch weather data")
@@ -84,22 +66,7 @@ class WeatherUpdateWorker(
         }
     }
 
-/*    private suspend fun fetchWeatherData(location: String?): Weather? =
-        withContext(Dispatchers.IO) {
-            val statisticsEntryPoint =
-                EntryPointAccessors.fromApplication(
-                    applicationContext,
-                    WeatherProviderEntryPoint::class.java,
-                )
-            val weatherRepository = statisticsEntryPoint.weatherRepository()
-
-            weatherRepository.getWeather(location ?: "Moscow")
-                .filterIsInstance<NetworkResult.Success<Weather>>() // Only take Success
-                .firstOrNull()
-                ?.data
-        }*/
-
-    private suspend fun fetchWeatherDataDirectlyFromApi(location: String?, lastLocation: String = ""): Weather =
+    private suspend fun fetchWeatherDataDirectlyFromApi(location: String): Weather =
         withContext(Dispatchers.IO) {
             val apiEntryPoint =
                 EntryPointAccessors.fromApplication(
@@ -108,7 +75,7 @@ class WeatherUpdateWorker(
                 )
             val weatherApi = apiEntryPoint.weatherApi()
 
-            weatherApi.getWeather(BuildConfig.weatherapi_apikey, location ?: lastLocation, 3)
+            weatherApi.getWeather(BuildConfig.weatherapi_apikey, location, 3)
                 .toWeather()
 
         }
@@ -125,7 +92,7 @@ class WeatherUpdateWorker(
                 updateAppWidgetState(applicationContext, glanceId) { prefs ->
                     prefs[WeatherPrefsKeys.WEATHER_JSON] = weatherJson
                     prefs[WeatherPrefsKeys.LAST_UPDATE] = System.currentTimeMillis()
-                    prefs[WeatherPrefsKeys.LAST_LOCATION] = weather.location
+                    prefs[WeatherPrefsKeys.LOCATION] = weather.location
                     prefs[WeatherPrefsKeys.ERROR_MESSAGE] = "" // Clear error
                 }
                 WeatherWidget().update(applicationContext, glanceId)
