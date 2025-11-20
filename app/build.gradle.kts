@@ -1,4 +1,5 @@
 import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+import org.gradle.kotlin.dsl.androidTestImplementation
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -100,6 +101,10 @@ dependencies {
     implementation(libs.androidx.glance.material3)
     // logger
     implementation(libs.timber)
+
+    //testing
+    androidTestImplementation ("com.google.truth:truth:1.4.5")
+    testImplementation ("com.google.truth:truth:1.4.5")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

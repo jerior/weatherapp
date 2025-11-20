@@ -2,12 +2,13 @@ package ru.burchik.myweatherapp.glance
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.location.Location
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.google.android.gms.location.LocationServices
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -28,6 +29,8 @@ class WeatherUpdateWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
+
+    val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
     @EntryPoint
     @InstallIn(SingletonComponent::class)
@@ -80,10 +83,27 @@ class WeatherUpdateWorker(
 
         }
 
+/*    suspend fun updateAppWeatherStatePrefs() {
+        applicationContext.dataStore.updateData {
+            it.toMutablePreferences().also { preferences ->
+                preferences["weather"] = (preferences[EXAMPLE_COUNTER] ?: 0) + 1
+            }
+        }
+    }*/
+
     private suspend fun updateWeatherState(weather: Weather) {
         withContext(Dispatchers.IO) {
             // Serialize the entire Weather object to JSON
             val weatherJson = WeatherSerializer.toJson(weather)
+
+            //update app preferences
+            applicationContext.dataStore.updateData {
+                it.toMutablePreferences().also { preferences ->
+                    preferences[WeatherPrefsKeys.WEATHER_JSON] = weatherJson
+                    preferences[WeatherPrefsKeys.LAST_UPDATE] = System.currentTimeMillis()
+                    preferences[WeatherPrefsKeys.LOCATION] = weather.location
+                }
+            }
 
             val glanceIds = GlanceAppWidgetManager(applicationContext)
                 .getGlanceIds(WeatherWidget::class.java)

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.dataStoreFile
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -31,5 +32,6 @@ object WeatherPrefsKeys {
     val WEATHER_JSON = stringPreferencesKey("weather_json")
     val LAST_UPDATE = longPreferencesKey("last_update")
     val LOCATION = stringPreferencesKey("location")
+    val IS_LOCATION_BASED = booleanPreferencesKey("is_location_based")
     val ERROR_MESSAGE = stringPreferencesKey("error_message")
 }

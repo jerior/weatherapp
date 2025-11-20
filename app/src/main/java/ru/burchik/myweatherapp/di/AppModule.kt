@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import ru.burchik.myweatherapp.data.preferences.UserPreferencesRepository
 import ru.burchik.myweatherapp.data.source.remote.api.OpenWeatherApi
 import ru.burchik.myweatherapp.data.source.remote.api.WeatherApi
 import ru.burchik.myweatherapp.domain.repository.WeatherRepository
@@ -67,6 +68,14 @@ object AppModule {
     @Singleton
     fun provideLocationProvider(@ApplicationContext context: Context): LocationProvider {
         return LocationProvider(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserPreferencesRepository(
+        @ApplicationContext context: Context
+    ): UserPreferencesRepository {
+        return UserPreferencesRepository(context)
     }
 
 }

@@ -66,6 +66,7 @@ fun WeatherScreen(
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    //val context = LocalContext.current
 
     Scaffold(
         topBar = {
