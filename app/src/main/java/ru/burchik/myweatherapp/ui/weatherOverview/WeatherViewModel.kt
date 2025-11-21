@@ -4,10 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import ru.burchik.myweatherapp.data.preferences.UserPreferencesRepository
@@ -15,6 +16,7 @@ import ru.burchik.myweatherapp.data.source.remote.base.NetworkErrorHandler
 import ru.burchik.myweatherapp.domain.util.NetworkResult
 import ru.burchik.myweatherapp.domain.repository.WeatherRepository
 import ru.burchik.myweatherapp.utils.LocationProvider
+import ru.burchik.myweatherapp.utils.WeatherSerializer
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -26,36 +28,57 @@ class WeatherViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(WeatherState())
-    val state = _state.asStateFlow()
+    val state = _state
+        .onStart {
+            viewModelScope.launch {
+                loadPreferences()
+                //loadInitialWeather()
+            }
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000L),
+            WeatherState()
+        )
 
-    init {
-        // Load preferences when ViewModel is created
-        loadPreferences()
-    }
-
-    private fun loadPreferences() {
+    private suspend fun loadPreferences() {
         Timber.d("Loading preferences...")
-        viewModelScope.launch {
-            preferencesRepository.userPreferences.collect { preferences ->
-                _state.update {
-                    it.copy(
-                        isLocationBased = preferences.isLocationBased,
-                        lastSearchedLocation = preferences.lastSearchedLocation
-                    )
+        preferencesRepository.userPreferences.collect { preferences ->
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    weather = preferences.weatherJson?.let { json -> WeatherSerializer.fromJson(json) },
+                    error = "",
+                    searchQuery = preferences.lastSearchedLocation,
+                    lastSearchedLocation = preferences.lastSearchedLocation,
+                    isLocationBased = preferences.isLocationBased,
+                    isSearchBarVisible = false
+                )
+            }
+            _state.value.weather?.timestamp?.let {
+                if (it < System.currentTimeMillis() - 30 * 60 * 1000){
+                    loadInitialWeather()
                 }
             }
-            Timber.d("Preferences loaded: ${_state.value.isLocationBased}, ${_state.value.lastSearchedLocation}")
+        }
+        Timber.d("Preferences loaded: ${_state.value.isLocationBased}, ${_state.value.lastSearchedLocation}")
+    }
+
+    private fun loadInitialWeather() {
+        Timber.d("Loading Initial weather data...")
+        if (_state.value.isLocationBased) {
+            Timber.d("Get by location: ${_state.value.lastSearchedLocation}")
+            getWeatherByLocation()
+        } else  {
+            Timber.d("Get by last searched location: ${_state.value.lastSearchedLocation}")
+            getWeatherByQuery(_state.value.lastSearchedLocation)
         }
     }
 
     fun onEvent(event: WeatherEvent) {
         when (event) {
-            is WeatherEvent.LoadInitialWeather -> {
-                loadInitialWeather()
-            }
             is WeatherEvent.GetWeatherByQuery -> {
                 getWeatherByQuery(event.location)
-                _state.update { it.copy(lastSearchedLocation = event.location, searchQuery = event.location, isLocationBased = false) }
             }
             is WeatherEvent.GetWeatherByLocation -> {
                 getWeatherByLocation()
@@ -79,68 +102,62 @@ class WeatherViewModel @Inject constructor(
         }
     }
 
-    private fun loadInitialWeather() {
-        viewModelScope.launch {
-            // Wait for preferences to load
-            preferencesRepository.userPreferences.first().let { preferences ->
-                if (preferences.isLocationBased) {
-                    getWeatherByLocation()
-                } else if (preferences.lastSearchedLocation.isNotEmpty()) {
-                    Timber.d("Last searched location: ${preferences.lastSearchedLocation}")
-                    getWeatherByQuery(preferences.lastSearchedLocation)
-                } else {
-                    // Default: try to get current location
-                    getWeatherByLocation()
-                }
-            }
-        }
-    }
-
     private fun getWeatherByLocation() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = "") }
+            val location = locationProvider.getCurrentLocation()
 
-            try {
-                val location = locationProvider.getCurrentLocation()
-                if (location != null) {
-                    val locationString = "${location.latitude},${location.longitude}"
-                    // Save location-based preference
-                    preferencesRepository.setIsLocationBased(true)
-                    preferencesRepository.setLastLocationCoordinates(
-                        location.latitude,
-                        location.longitude
-                    )
-
-                    getWeatherByQuery(locationString)
-
-                    //getWeatherByLocation(locationString)
-                    _state.update {
-                        it.copy(
-                            isLocationBased = true,
-                            lastSearchedLocation = locationString
-                        )
-                    }
-                } else {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            error = "Не удалось получить местоположение. Проверьте разрешения."
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _state.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "Ошибка получения местоположения: ${e.message}"
-                    )
-                }
+            if (location == null) {
+                _state.update { it.copy(error = "Не удалось определить местопложение") }
+                return@launch
             }
+
+            val locationString = "${location.latitude},${location.longitude}"
+            repository.getWeather(locationString)
+                .onEach { result ->
+                    when (result) {
+                        is NetworkResult.Loading -> {
+                            _state.update {
+                                it.copy(
+                                    isLoading = true,
+                                    error = ""
+                                )
+                            }
+                        }
+
+                        is NetworkResult.Success -> {
+                            _state.update {
+                                it.copy(
+                                    isLoading = false,
+                                    weather = result.data,
+                                    isLocationBased = true,
+                                    error = ""
+                                )
+                            }
+                            // Save query-based preference
+                            preferencesRepository.setWeather(result.data)
+                            preferencesRepository.setIsLocationBased(true)
+                            preferencesRepository.setLastLocationCoordinates(
+                                location.latitude,
+                                location.longitude
+                            )
+                        }
+
+                        is NetworkResult.Error -> {
+                            _state.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = NetworkErrorHandler.getErrorMessage(result.error)
+                                )
+                            }
+                        }
+                    }
+                }
+                .launchIn(viewModelScope)
         }
     }
 
     private fun getWeatherByQuery(query: String) {
-        if (query.isNullOrBlank()) {
+        if (query.isEmpty()) {
             _state.update { it.copy(error = "В запросе нет данных о местопложении") }
             return
         }
@@ -160,11 +177,13 @@ class WeatherViewModel @Inject constructor(
                         _state.update {
                             it.copy(
                                 isLoading = false,
+                                isLocationBased = false,
                                 weather = result.data,
                                 error = ""
                             )
                         }
                         // Save query-based preference
+                        preferencesRepository.setWeather(result.data)
                         preferencesRepository.setIsLocationBased(false)
                         preferencesRepository.setLastSearchedLocation(query)
                     }

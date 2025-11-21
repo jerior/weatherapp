@@ -11,7 +11,6 @@ import java.util.Locale
 
 fun WeatherResponse.toWeather(): Weather {
 
-
     val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
     // Get hourly forecast for today only (next 24 hours from current time)
@@ -40,6 +39,7 @@ fun WeatherResponse.toWeather(): Weather {
         humidity = current.humidity,
         windSpeed = current.windKph,
         feelsLike = current.feelsLikeC,
+        timestamp = System.currentTimeMillis(),
         hourlyForecast = todayHourly,
         forecast = forecast.forecastDay.map { day ->
             ForecastDay(

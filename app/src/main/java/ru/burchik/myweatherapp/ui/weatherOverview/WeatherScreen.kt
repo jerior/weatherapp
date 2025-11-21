@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,22 +24,20 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.Air
+import androidx.compose.material.icons.outlined.ArrowDropDownCircle
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -56,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
-import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.ui.theme.common.WeatherIconByCondition
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,66 +67,54 @@ fun WeatherScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     //val context = LocalContext.current
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(R.string.app_name)) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 12.dp)
+            .displayCutoutPadding()
+            .verticalScroll(rememberScrollState())
+    ) {
+        if (state.isSearchBarVisible) {
+            SearchBar(
+                query = state.searchQuery,
+                onQueryChange = {
+                    viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
+                },
+                onQuerySearch = {
+                    viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
+                },
+                onLocationSearch = {
+                    viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+                }
             )
         }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 12.dp)
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-        ) {
-            if (state.isSearchBarVisible) {
-                SearchBar(
-                    query = state.searchQuery,
-                    onQueryChange = {
-                        viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
-                    },
-                    onQuerySearch = {
-                        viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
-                    },
-                    onLocationSearch = {
-                        viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+
+        when {
+            state.isLoading -> {
+                LoadingContent()
+            }
+
+            state.error.isNotEmpty() -> {
+                ErrorContent(
+                    error = state.error,
+                    onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
+                )
+            }
+
+            state.weather != null -> {
+                WeatherContent(
+                    weatherState = state,
+                    onHeaderClick = {
+                        viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
                     }
                 )
             }
 
-            when {
-                state.isLoading -> {
-                    LoadingContent()
-                }
-
-                state.error.isNotEmpty() -> {
-                    ErrorContent(
-                        error = state.error,
-                        onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
-                    )
-                }
-
-                state.weather != null -> {
-                    WeatherContent(
-                        weatherState = state,
-                        onHeaderClick = {
-                            viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
-                        }
-                    )
-                }
-
-                state.weather == null -> {
-                    if (state.isLocationBased) {
-                        viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
-                    } else {
-                        viewModel.onEvent(WeatherEvent.GetWeatherByQuery(state.lastSearchedLocation))
-                    }
-
+            state.weather == null -> {
+                if (state.isLocationBased) {
+                    viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+                } else {
+                    viewModel.onEvent(WeatherEvent.GetWeatherByQuery(state.lastSearchedLocation))
                 }
             }
         }
@@ -271,37 +258,18 @@ fun WeatherContent(
     ) {
         CurrentWeatherCard(weatherState, onHeaderClick = onHeaderClick)
         Spacer(modifier = Modifier.height(8.dp))
-        WeatherDetailsCard(weatherState.weather!!)
 
-        // Add Hourly Forecast Section
-        if (weatherState.weather.hourlyForecast.isNotEmpty()) {
+        // Hourly Forecast Section
+        if (weatherState.weather?.hourlyForecast?.isNotEmpty() == true) {
             Spacer(modifier = Modifier.height(16.dp))
             HourlyForecastSection(hourlyForecast = weatherState.weather.hourlyForecast)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        ForecastFixedSection(forecast = weatherState.weather.forecast)
+        DailyForecastFixedSection(forecast = weatherState.weather?.forecast!!)
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
-
-/*@Preview
-@Composable
-private fun CurrentWeatherCardPreview() {
-    CurrentWeatherCard(
-        weather = Weather(
-            location = "Москва",
-            country = "Россия",
-            temperature = 25.0,
-            condition = WeatherCondition.ClearSky,
-            humidity = 87,
-            windSpeed = 5.0,
-            feelsLike = 7.4,
-            hourlyForecast = listOf(),
-            forecast = listOf()
-        )
-    )
-}*/
 
 @Composable
 fun CurrentWeatherCard(
@@ -339,82 +307,75 @@ fun CurrentWeatherCard(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = null
                         )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowDropDownCircle,
+                            contentDescription = null
+                        )
                     }
-
                 }
                 Spacer(modifier = Modifier.height(24.dp))
-                /*                Text(
-                                    text = "${weather.temperature.toInt()}°C",
-                                    style = MaterialTheme.typography.displayLarge,
-                                    fontWeight = FontWeight.Bold
-                                )*/
-                WeatherIconByCondition(
-                    modifier = Modifier.alpha(0.5f),
-                    condition = weatherState.weather!!.condition,
-                    size = 64.dp
-                )
-                Text(
-                    text = "${weatherState.weather.temperature.toInt()}°C",
-                    style = MaterialTheme.typography.displayMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                /*                Text(
-                                    text = weather.condition,
-                                    style = MaterialTheme.typography.titleLarge
-                                )*/
-                Text(
-                    //text = "Ощущается как ${weather.feelsLike.toInt()}°C",
-                    text = stringResource(
-                        R.string.feels_like,
-                        weatherState.weather.feelsLike.toInt()
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        WeatherIconByCondition(
+                            modifier = Modifier.alpha(0.5f),
+                            condition = weatherState.weather!!.condition,
+                            size = 64.dp
+                        )
+                        Text(
+                            text = "${weatherState.weather.temperature.toInt()}°C",
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.feels_like,
+                                weatherState.weather.feelsLike.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        WeatherDetailIconItem(
+                            imageVector = Icons.Outlined.WaterDrop,
+                            value = "${weatherState.weather?.humidity}%"
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        WeatherDetailIconItem(
+                            imageVector = Icons.Outlined.Air,
+                            value = stringResource(
+                                R.string.wind_speed_km_h,
+                                weatherState.weather?.windSpeed!!.toInt()
+                            )
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun WeatherDetailsCard(weather: Weather) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            WeatherDetailItem(
-                label = "Влажность",
-                value = "${weather.humidity}%"
-            )
-            HorizontalDivider(
-                modifier = Modifier
-                    .height(60.dp)
-                    .width(1.dp)
-            )
-            WeatherDetailItem(
-                label = "Ветер",
-                value = "${weather.windSpeed.toInt()} км/ч"
-            )
-        }
-    }
-}
-
-@Composable
-fun WeatherDetailItem(label: String, value: String) {
+fun WeatherDetailIconItem(imageVector: ImageVector, value: String) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(8.dp)
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Icon(
+            imageVector = imageVector,
+            contentDescription = "Humidity",
+            Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
@@ -438,17 +399,17 @@ fun ForecastSection(forecast: List<ForecastDay>) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(forecast) { day ->
-                ForecastCard(day)
+                DailyForecastItem(day)
             }
         }
     }
 }
 
 @Composable
-fun ForecastFixedSection(forecast: List<ForecastDay>) {
+fun DailyForecastFixedSection(forecast: List<ForecastDay>) {
     Column {
         Text(
-            text = "На 3 дня",
+            text = stringResource(R.string.three_days_forecast),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -457,7 +418,7 @@ fun ForecastFixedSection(forecast: List<ForecastDay>) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             forecast.forEach { day ->
-                ForecastCard(day, modifier = Modifier.weight(1f))
+                DailyForecastItem(day, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -467,7 +428,7 @@ fun ForecastFixedSection(forecast: List<ForecastDay>) {
 fun HourlyForecastSection(hourlyForecast: List<HourlyForecast>) {
     Column {
         Text(
-            text = "Сегодня",
+            text = stringResource(R.string.today),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -538,7 +499,7 @@ fun HourlyForecastItem(hour: HourlyForecast) {
 }
 
 @Composable
-fun ForecastCard(day: ForecastDay, modifier: Modifier = Modifier) {
+fun DailyForecastItem(day: ForecastDay, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.width(140.dp),
         elevation = CardDefaults.cardElevation(2.dp)

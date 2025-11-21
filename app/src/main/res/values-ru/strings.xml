@@ -11,4 +11,7 @@
     <string name="thunderstorm">Гроза</string>
     <string name="snow">Снег</string>
     <string name="fog">Туман</string>
+    <string name="wind_speed_km_h">%1$d км/ч</string>
+    <string name="today">Сегодня</string>
+    <string name="three_days_forecast">На 3 дня</string>
 </resources>

@@ -13,14 +13,20 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 import ru.burchik.myweatherapp.BuildConfig
+import ru.burchik.myweatherapp.data.preferences.UserPreferencesRepository
 import ru.burchik.myweatherapp.data.source.remote.api.WeatherApi
 import ru.burchik.myweatherapp.data.source.remote.mapper.toWeather
 import ru.burchik.myweatherapp.domain.model.Weather
+import ru.burchik.myweatherapp.domain.repository.WeatherRepository
+import ru.burchik.myweatherapp.domain.util.NetworkResult
 import ru.burchik.myweatherapp.utils.LocationProvider
 import ru.burchik.myweatherapp.utils.WeatherSerializer
 import timber.log.Timber
@@ -34,20 +40,67 @@ class WeatherUpdateWorker(
 
     @EntryPoint
     @InstallIn(SingletonComponent::class)
+    interface WeatherRepoProviderEntryPoint {
+        fun weatherRepository(): WeatherRepository
+    }
+
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface AppPreferencesRepoProviderEntryPoint {
+        fun userPrefsRepo(): UserPreferencesRepository
+    }
+
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
     interface WeatherApiProviderEntryPoint {
         fun weatherApi(): WeatherApi
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @SuppressLint("MissingPermission", "RestrictedApi")
     override suspend fun doWork(): Result {
         Timber.d("Starting weather update")
 
-        val loc = LocationProvider(applicationContext).getCurrentLocation()?.let{ "${it.latitude},${it.longitude}" }  ?: "Moscow"
-        CoroutineScope(Dispatchers.IO).launch {
-            val weather = fetchWeatherDataDirectlyFromApi(location = loc)
-            Timber.d("Weather: $weather")
-            updateWeatherState(weather)
-        }
+        val prefRepoEntryPoint =
+            EntryPointAccessors.fromApplication(
+                applicationContext,
+                AppPreferencesRepoProviderEntryPoint::class.java,
+            )
+        val userPrefsRepo = prefRepoEntryPoint.userPrefsRepo()
+
+        val weatherRepoEntryPoint =
+            EntryPointAccessors.fromApplication(
+                applicationContext,
+                WeatherRepoProviderEntryPoint::class.java,
+            )
+        val weatherRepo = weatherRepoEntryPoint.weatherRepository()
+
+        userPrefsRepo.userPreferences
+            .onEach { Timber.d("1. doWork User preferences: $it") }
+            .flatMapLatest { prefs ->
+                if (prefs.isLocationBased) {
+                    flowOf(LocationProvider(applicationContext).getCurrentLocation()?.let{ "${it.latitude},${it.longitude}" } ?: "Moscow")
+                } else {
+                    flowOf(prefs.lastSearchedLocation)
+                }
+            }
+            .onEach { Timber.d("2. doWork Location: $it") }
+            .flatMapLatest {location ->
+                weatherRepo.getWeather (location = location)
+            }.collectLatest {
+                when (it) {
+                    is NetworkResult.Success -> {
+                        Timber.d("3. doWork Success: $it")
+                        updateWeatherState(it.data)
+                        Result.success()
+                    }
+
+                    is NetworkResult.Error -> {
+                        updateErrorState(it.error.toString())
+                    }
+                    else -> {}
+                }
+            }
 
         // If we reach here, no success result was emitted
         updateErrorState("Failed to fetch weather data")
@@ -69,6 +122,7 @@ class WeatherUpdateWorker(
         }
     }
 
+    //todo need to be reused and centralized
     private suspend fun fetchWeatherDataDirectlyFromApi(location: String): Weather =
         withContext(Dispatchers.IO) {
             val apiEntryPoint =
@@ -101,7 +155,7 @@ class WeatherUpdateWorker(
                 it.toMutablePreferences().also { preferences ->
                     preferences[WeatherPrefsKeys.WEATHER_JSON] = weatherJson
                     preferences[WeatherPrefsKeys.LAST_UPDATE] = System.currentTimeMillis()
-                    preferences[WeatherPrefsKeys.LOCATION] = weather.location
+                    preferences[WeatherPrefsKeys.LAST_LOCATION] = weather.location
                 }
             }
 
@@ -112,7 +166,7 @@ class WeatherUpdateWorker(
                 updateAppWidgetState(applicationContext, glanceId) { prefs ->
                     prefs[WeatherPrefsKeys.WEATHER_JSON] = weatherJson
                     prefs[WeatherPrefsKeys.LAST_UPDATE] = System.currentTimeMillis()
-                    prefs[WeatherPrefsKeys.LOCATION] = weather.location
+                    prefs[WeatherPrefsKeys.LAST_LOCATION] = weather.location
                     prefs[WeatherPrefsKeys.ERROR_MESSAGE] = "" // Clear error
                 }
                 WeatherWidget().update(applicationContext, glanceId)

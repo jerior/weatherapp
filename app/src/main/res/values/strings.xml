@@ -10,4 +10,7 @@
     <string name="thunderstorm">Thunderstorm</string>
     <string name="snow">Snow</string>
     <string name="fog">Fog</string>
+    <string name="wind_speed_km_h">%1$d km/h</string>
+    <string name="today">Today</string>
+    <string name="three_days_forecast">3 days forecast</string>
 </resources>

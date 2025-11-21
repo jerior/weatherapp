@@ -12,7 +12,8 @@ data class Weather(
     val windSpeed: Double,
     val feelsLike: Double,
     val hourlyForecast: List<HourlyForecast>,
-    val forecast: List<ForecastDay>
+    val forecast: List<ForecastDay>,
+    val timestamp: Long
 )
 
 @Serializable

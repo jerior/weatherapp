@@ -138,7 +138,7 @@ class WeatherWidget : GlanceAppWidget() {
         val weatherJson = prefs[WeatherPrefsKeys.WEATHER_JSON]
         val errorMessage = prefs[WeatherPrefsKeys.ERROR_MESSAGE]
         val lastUpdate = prefs[WeatherPrefsKeys.LAST_UPDATE] ?: 0L
-        val lastLocation = prefs[WeatherPrefsKeys.LOCATION] ?: "Yekaterinburg"
+        val lastLocation = prefs[WeatherPrefsKeys.LAST_LOCATION] ?: "Yekaterinburg"
 
         Timber.d("weatherJson: ${weatherJson}")
 
