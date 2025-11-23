@@ -11,7 +11,7 @@ interface OpenWeatherApi {
     @GET("forecast")
     suspend fun getWeatherByCity(
         @Query("appid") openWeatherApiKey: String,
-        @Query("q") location: String,
+        @Query("q") query: String,
         @Query("days") days: Int = 3
     ): WeatherResponse
 

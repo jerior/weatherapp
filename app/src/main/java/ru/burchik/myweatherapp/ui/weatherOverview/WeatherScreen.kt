@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.burchik.myweatherapp.R
@@ -361,6 +362,18 @@ fun CurrentWeatherCard(
                         )
                     }
                 }
+            }
+            val ago = weatherState.weather?.timestamp?.let { System.currentTimeMillis() - it }?.div(60*1000)?.toInt()
+            Column(modifier = Modifier
+                .fillMaxSize()
+                .padding(end = 30.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                Text(
+                    fontSize = 8.sp,
+                    text = "${ago} mins ago",
+                )
             }
         }
     }

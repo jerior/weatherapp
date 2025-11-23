@@ -86,7 +86,7 @@ class WeatherUpdateWorker(
             }
             .onEach { Timber.d("2. doWork Location: $it") }
             .flatMapLatest {location ->
-                weatherRepo.getWeather (location = location)
+                weatherRepo.getWeather (query = location)
             }.collectLatest {
                 when (it) {
                     is NetworkResult.Success -> {

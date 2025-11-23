@@ -3,21 +3,22 @@ package ru.burchik.myweatherapp.domain.repository
 import kotlinx.coroutines.flow.Flow
 import ru.burchik.myweatherapp.domain.util.NetworkResult
 import ru.burchik.myweatherapp.BuildConfig
+import ru.burchik.myweatherapp.data.source.remote.api.OpenWeatherApi
 import ru.burchik.myweatherapp.data.source.remote.mapper.toWeather
-import ru.burchik.myweatherapp.data.source.remote.api.WeatherApi
 import ru.burchik.myweatherapp.data.source.remote.base.safeApiFlow
 import ru.burchik.myweatherapp.domain.model.Weather
 import javax.inject.Inject
 
 class OpenWeatherRepositoryImpl @Inject constructor(
-    private val api: WeatherApi
+    private val api: OpenWeatherApi
 ) : WeatherRepository {
 
-    override fun getWeather(location: String): Flow<NetworkResult<Weather>> {
+    override fun getWeather(query: String): Flow<NetworkResult<Weather>> {
         return safeApiFlow {
-            val response = api.getWeather(
-                apiKey = BuildConfig.weatherapi_apikey,
-                location = location
+            val response = api.getWeatherByCity(
+                openWeatherApiKey = BuildConfig.openweather_apikey,
+                query = query,
+                days = 3
             )
             response.toWeather()
         }

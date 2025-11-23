@@ -13,11 +13,11 @@ class WeatherRepositoryImpl @Inject constructor(
     private val api: WeatherApi
 ) : WeatherRepository {
 
-    override fun getWeather(location: String): Flow<NetworkResult<Weather>> {
+    override fun getWeather(query: String): Flow<NetworkResult<Weather>> {
         return safeApiFlow {
             val response = api.getWeather(
                 apiKey = BuildConfig.weatherapi_apikey,
-                location = location
+                location = query
             )
             response.toWeather()
         }

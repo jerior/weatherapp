@@ -2,6 +2,7 @@ package ru.burchik.myweatherapp.glance
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.icu.text.SimpleDateFormat
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +34,7 @@ import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
@@ -51,6 +53,7 @@ import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.domain.model.WeatherCondition
 import ru.burchik.myweatherapp.utils.WeatherSerializer
 import timber.log.Timber
+import java.util.Date
 
 class WeatherWidget : GlanceAppWidget() {
 
@@ -100,12 +103,30 @@ class WeatherWidget : GlanceAppWidget() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             //WeatherHeader(weatherData.location)
-            TemperatureDisplay(
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TemperatureDisplay(
+                    modifier = GlanceModifier
+                        .width(68.dp)
+                        .padding(horizontal = 2.dp),
+                    current = weatherData?.temperature ?: -100.0
+                )
+                Spacer(modifier = GlanceModifier.height(1.dp))
+                val timeFormat = SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                val date = Date(weatherData?.timestamp!!)
+                Text(
+                    text = "on ${timeFormat.format(date)}",
+                    style = TextStyle(fontSize = 9.sp)
+                )
+            }
+/*            TemperatureDisplay(
                 modifier = GlanceModifier
                     .width(68.dp)
                     .padding(horizontal = 2.dp),
                 current = weatherData?.temperature ?: -100.0
-            )
+            )*/
             Spacer(modifier = GlanceModifier.width(12.dp))
             ConditionIconDisplay(
                 modifier = GlanceModifier.size(60.dp),
@@ -143,7 +164,7 @@ class WeatherWidget : GlanceAppWidget() {
         Timber.d("weatherJson: ${weatherJson}")
 
         if (weatherJson == null) {
-            if (lastUpdate < System.currentTimeMillis() - 60 * 60 * 1000) {
+            if (lastUpdate < System.currentTimeMillis() - 30 * 60 * 1000) {
                 actionRunCallback<RunActivityCallback>(
                     actionParametersOf(
                         stateLocationParam to lastLocation,

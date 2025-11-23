@@ -36,8 +36,10 @@ android {
             )
         }
         val weatherapi_apikey: String = gradleLocalProperties(rootDir, providers).getProperty("weatherapi_apikey")
+        val openweather_apikey: String = gradleLocalProperties(rootDir, providers).getProperty("openweather_apikey")
         getByName("debug") {
             buildConfigField("String", "weatherapi_apikey", "\"${weatherapi_apikey}\"")
+            buildConfigField("String", "openweather_apikey", "\"${openweather_apikey}\"")
         }
     }
     compileOptions {

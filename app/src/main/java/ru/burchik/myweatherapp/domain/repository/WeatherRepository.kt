@@ -5,5 +5,5 @@ import ru.burchik.myweatherapp.domain.util.NetworkResult
 import ru.burchik.myweatherapp.domain.model.Weather
 
 interface WeatherRepository {
-    fun getWeather(location: String): Flow<NetworkResult<Weather>>
+    fun getWeather(query: String): Flow<NetworkResult<Weather>>
 }
