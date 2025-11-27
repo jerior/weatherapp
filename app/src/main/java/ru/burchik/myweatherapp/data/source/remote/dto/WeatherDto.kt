@@ -39,6 +39,8 @@ data class ForecastDayDto(
 
 data class HourDto(
     val time: String,
+    @SerializedName("time_epoch")
+    val timeEpoch: Long,
     @SerializedName("temp_c")
     val tempC: Double,
     @SerializedName("wind_kph")

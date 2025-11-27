@@ -19,6 +19,7 @@ data class Weather(
 @Serializable
 data class HourlyForecast(
     val time: String,
+    val timeEpoch: Long,
     val temperature: Double,
     val condition: WeatherCondition,
     val chanceOfRain: Int,

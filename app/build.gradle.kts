@@ -77,6 +77,8 @@ dependencies {
     //hilt
     implementation(libs.hilt.android)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.ui)
+    implementation(libs.protolite.well.known.types)
     ksp(libs.hilt.android.compiler)
     implementation(libs.hilt.android.gradle.plugin)
 

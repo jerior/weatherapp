@@ -22,8 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.ArrowDropDownCircle
 import androidx.compose.material.icons.outlined.WaterDrop
@@ -36,17 +34,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -57,7 +52,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
-import ru.burchik.myweatherapp.ui.theme.common.WeatherIconByCondition
+import ru.burchik.myweatherapp.domain.util.IconSet
+import ru.burchik.myweatherapp.domain.util.WeatherConditionResolver
+import ru.burchik.myweatherapp.ui.common.HourlyForecastChart
+import ru.burchik.myweatherapp.ui.common.WeatherIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +64,6 @@ fun WeatherScreen(
     viewModel: WeatherViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    //val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -90,16 +87,16 @@ fun WeatherScreen(
             )
         }
 
+        if (state.error.isNotEmpty()) {
+            ErrorContent(
+                error = state.error,
+                onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
+            )
+        }
+
         when {
             state.isLoading -> {
                 LoadingContent()
-            }
-
-            state.error.isNotEmpty() -> {
-                ErrorContent(
-                    error = state.error,
-                    onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
-                )
             }
 
             state.weather != null -> {
@@ -192,7 +189,7 @@ fun ErrorContent(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(15.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.errorContainer
         )
@@ -200,22 +197,16 @@ fun ErrorContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.Filled.WarningAmber,
-                modifier = Modifier.size(48.dp),
-                contentDescription = "Alert"
-            )
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = error,
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = { onRetry() }) {
                 Icon(Icons.Filled.Refresh, "Retry")
                 Text("Retry")
@@ -225,33 +216,12 @@ fun ErrorContent(
 }
 
 @Composable
-fun IconSwitchButton() {
-    var checked by remember { mutableStateOf(false) }
-
-    Switch(
-        checked = checked,
-        onCheckedChange = { checked = it },
-        thumbContent = {
-            if (checked) {
-                Icon(
-                    imageVector = Icons.Filled.LocationOn,
-                    contentDescription = "Checked"
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.TextFields,
-                    contentDescription = "Unchecked"
-                )
-            }
-        }
-    )
-}
-
-@Composable
 fun WeatherContent(
     weatherState: WeatherState,
     onHeaderClick: () -> Unit
 ) {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -263,7 +233,14 @@ fun WeatherContent(
         // Hourly Forecast Section
         if (weatherState.weather?.hourlyForecast?.isNotEmpty() == true) {
             Spacer(modifier = Modifier.height(16.dp))
-            HourlyForecastSection(hourlyForecast = weatherState.weather.hourlyForecast)
+            //HourlyForecastSection(hourlyForecast = weatherState.weather.hourlyForecast)
+            val hfc = weatherState.weather.hourlyForecast.map { ru.burchik.myweatherapp.ui.common.HourlyForecast(
+                timestamp = it.timeEpoch,
+                temperature = it.temperature,
+                iconResource = WeatherConditionResolver(context, iconSet = IconSet.DEFAULT).resolveIcon(it.condition)
+            ) }
+            HourlyForecastChart(forecasts = hfc)
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -325,10 +302,11 @@ fun CurrentWeatherCard(
                         modifier = Modifier.weight(1f),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        WeatherIconByCondition(
-                            modifier = Modifier.alpha(0.5f),
+                        WeatherIcon(
+                            modifier = Modifier
+                                .alpha(0.5f)
+                                .size(64.dp),
                             condition = weatherState.weather!!.condition,
-                            size = 64.dp
                         )
                         Text(
                             text = "${weatherState.weather.temperature.toInt()}°C",
@@ -477,9 +455,9 @@ fun HourlyForecastItem(hour: HourlyForecast) {
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        WeatherIconByCondition(
+        WeatherIcon(
             condition = hour.condition,
-            size = 24.dp
+            modifier = Modifier.size(24.dp)
         )
 
         Spacer(modifier = Modifier.height(4.dp))
@@ -490,7 +468,7 @@ fun HourlyForecastItem(hour: HourlyForecast) {
             fontWeight = FontWeight.Bold
         )
 
-        if (hour.chanceOfRain > 0) {
+/*        if (hour.chanceOfRain > 0) {
             Spacer(modifier = Modifier.height(4.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -507,7 +485,7 @@ fun HourlyForecastItem(hour: HourlyForecast) {
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-        }
+        }*/
     }
 }
 
@@ -529,9 +507,9 @@ fun DailyForecastItem(day: ForecastDay, modifier: Modifier = Modifier) {
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            WeatherIconByCondition(
+            WeatherIcon(
                 condition = day.condition,
-                size = 24.dp
+                modifier = Modifier.size(24.dp)
             )
             /*            Text(
                             text = day.condition,

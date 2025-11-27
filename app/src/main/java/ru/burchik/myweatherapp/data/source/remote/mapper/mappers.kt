@@ -24,6 +24,7 @@ fun WeatherResponse.toWeather(): Weather {
         ?.map { hour ->
             HourlyForecast(
                 time = formatHourTime(hour.time),
+                timeEpoch = hour.timeEpoch,
                 temperature = hour.tempC,
                 condition = codeToDomainCondition(hour.condition.code),
                 chanceOfRain = hour.chanceOfRain,
@@ -69,13 +70,13 @@ private fun formatHourTime(timeString: String): String {
 }
 
 fun codeToDomainCondition(code: Int) = when (code) {
-    1000, 1006 -> WeatherCondition.ClearSky
-    1003 -> WeatherCondition.MostlyClear
-    in 1009..1030 -> WeatherCondition.Cloudy
-    in 1150..1183 -> WeatherCondition.LightRain
-    in 1186..1200 -> WeatherCondition.HeavyRain
-    1279, 1282 -> WeatherCondition.Thunderstorm
-    1213, 1219 -> WeatherCondition.Snow
-    1135 -> WeatherCondition.Fog
-    else -> WeatherCondition.Cloudy // Fallback
+    1000, 1006 -> WeatherCondition.CLEAR
+    1003 -> WeatherCondition.PARTLY_CLOUDY
+    in 1009..1030 -> WeatherCondition.CLOUDY
+    in 1150..1183 -> WeatherCondition.DRIZZLE
+    in 1186..1200 -> WeatherCondition.HEAVY_RAIN
+    1279, 1282 -> WeatherCondition.THUNDERSTORM
+    1213, 1219 -> WeatherCondition.SNOW
+    1135 -> WeatherCondition.FOG
+    else -> WeatherCondition.CLOUDY // Fallback
 }

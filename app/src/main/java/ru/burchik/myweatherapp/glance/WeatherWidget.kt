@@ -51,6 +51,8 @@ import ru.burchik.myweatherapp.R
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.domain.model.WeatherCondition
+import ru.burchik.myweatherapp.domain.util.IconSet
+import ru.burchik.myweatherapp.domain.util.WeatherConditionResolver
 import ru.burchik.myweatherapp.utils.WeatherSerializer
 import timber.log.Timber
 import java.util.Date
@@ -65,13 +67,13 @@ class WeatherWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
             GlanceTheme {
-                WidgetContent()
+                WidgetContent(context)
             }
         }
     }
 
     @Composable
-    fun WidgetMicroContent(weatherData: Weather?) {
+    fun WidgetMicroContent(context: Context, weatherData: Weather?) {
         Box(
             modifier = GlanceModifier
                 .background(ImageProvider(R.drawable.rounded_background))
@@ -84,15 +86,16 @@ class WeatherWidget : GlanceAppWidget() {
                 current = weatherData?.temperature ?: -100.0
             )
             ConditionIconDisplay(
+                context = context,
                 modifier = GlanceModifier.size(62.dp).padding(top = 34.dp, start = 8.dp),
                 //modifier = GlanceModifier.size(42.dp).padding(bottom = 4.dp, end = 4.dp),
-                condition = weatherData?.condition
+                condition = weatherData?.condition ?: WeatherCondition.UNKNOWN
             )
         }
     }
 
     @Composable
-    fun WidgetNormalContent(weatherData: Weather?) {
+    fun WidgetNormalContent(context: Context, weatherData: Weather?) {
         Row(
             modifier = GlanceModifier
                 .fillMaxSize()
@@ -121,16 +124,11 @@ class WeatherWidget : GlanceAppWidget() {
                     style = TextStyle(fontSize = 9.sp)
                 )
             }
-/*            TemperatureDisplay(
-                modifier = GlanceModifier
-                    .width(68.dp)
-                    .padding(horizontal = 2.dp),
-                current = weatherData?.temperature ?: -100.0
-            )*/
             Spacer(modifier = GlanceModifier.width(12.dp))
             ConditionIconDisplay(
+                context = context,
                 modifier = GlanceModifier.size(60.dp),
-                condition = weatherData?.condition
+                condition = weatherData?.condition ?: WeatherCondition.UNKNOWN
             )
             Spacer(modifier = GlanceModifier.width(18.dp))
             Column(
@@ -144,6 +142,7 @@ class WeatherWidget : GlanceAppWidget() {
                     modifier = GlanceModifier.defaultWeight()
                 )
                 FewDaysForecastDisplay(
+                    context = context,
                     modifier = GlanceModifier,
                     //.background(ImageProvider(R.drawable.rounded_background)),
                     forecastDaysList = weatherData?.forecast,
@@ -153,7 +152,7 @@ class WeatherWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun WidgetContent(/*weatherData: Weather?*/) {
+    private fun WidgetContent(context: Context) {
         val prefs = currentState<Preferences>()
 
         val weatherJson = prefs[WeatherPrefsKeys.WEATHER_JSON]
@@ -180,9 +179,9 @@ class WeatherWidget : GlanceAppWidget() {
             //WeatherDetailsView(weather, lastUpdate)
             val size = LocalSize.current
             if (size.width > 100.dp) {
-                WidgetNormalContent(weatherData)
+                WidgetNormalContent(context, weatherData)
             } else {
-                WidgetMicroContent(weatherData)
+                WidgetMicroContent(context, weatherData)
             }
         } else {
             ErrorView("Failed to load weather data")
@@ -258,6 +257,7 @@ class WeatherWidget : GlanceAppWidget() {
         }
     }
 
+    @SuppressLint("RestrictedApi")
     @Composable
     fun LocationDisplay(
         city: String,
@@ -273,25 +273,41 @@ class WeatherWidget : GlanceAppWidget() {
                 .padding(top = 4.dp)
                 .clickable(
                     onClick
-                )
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(city, modifier = GlanceModifier, style = TextStyle(fontSize = 18.sp,color = ColorProvider(R.color.widget_text_primary)))
-            Spacer(modifier = GlanceModifier.width(6.dp))
-            Text(country, modifier = GlanceModifier, style = TextStyle(fontSize = 14.sp, color = ColorProvider(R.color.widget_text_primary)))
+            val size = LocalSize.current
+            if (size.width > 200.dp) {
+                Spacer(modifier = GlanceModifier.width(6.dp))
+                Text(
+                    country,
+                    modifier = GlanceModifier,
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        color = ColorProvider(R.color.widget_text_primary)
+                    )
+                )
+            }
         }
     }
 
     @SuppressLint("RestrictedApi")
     @Composable
     fun ConditionIconDisplay(
-        condition: WeatherCondition?,
+        context: Context,
+        condition: WeatherCondition,
+        iconSet: IconSet = IconSet.DEFAULT,
         modifier: GlanceModifier = GlanceModifier
     ) {
-        if (condition == null) return
+        // Use the resolver
+        val resolver = WeatherConditionResolver(context, iconSet)
+        val iconRes = resolver.resolveIcon(condition)
+
         Image(
             modifier = modifier,
             contentDescription = "An Icon",
-            provider = ImageProvider(condition.getDrawableResId()),
+            provider = ImageProvider(iconRes),
             colorFilter = ColorFilter.tint(
                 colorProvider = ColorProvider(R.color.widget_text_primary)
             )
@@ -300,28 +316,52 @@ class WeatherWidget : GlanceAppWidget() {
 
     @Composable
     fun FewDaysForecastDisplay(
+        context: Context,
         forecastDaysList: List<ForecastDay>?,
         modifier: GlanceModifier = GlanceModifier
     ) {
-        Row(
-            modifier = modifier.fillMaxWidth(),
-            //horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            forecastDaysList?.forEachIndexed { idx, forecastDay ->
-                DayForecastDisplay(
-                    forecastDay = forecastDay,
-                    modifier = GlanceModifier
-                        .padding(horizontal = 4.dp)
-                        .width(54.dp)
-                    //.background(ImageProvider(R.drawable.rounded_background))
-                )
-                if (idx < 2) Spacer(modifier = GlanceModifier.width(8.dp))
+        val size = LocalSize.current
+        if (size.width < 150.dp) {
+            Row(
+                modifier = modifier.fillMaxWidth(),
+                //horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                forecastDaysList?.forEachIndexed { idx, forecastDay ->
+                    DayForecastDisplay(
+                        context = context,
+                        forecastDay = forecastDay,
+                        modifier = GlanceModifier
+                            .padding(horizontal = 4.dp)
+                            .width(54.dp)
+                        //.background(ImageProvider(R.drawable.rounded_background))
+                    )
+                    if (idx < 2) Spacer(modifier = GlanceModifier.width(8.dp))
+                }
+            }
+        } else {
+            Row(
+                modifier = modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                forecastDaysList?.forEachIndexed { idx, forecastDay ->
+                    DayForecastDisplay(
+                        context = context,
+                        forecastDay = forecastDay,
+                        modifier = GlanceModifier
+                            .padding(horizontal = 4.dp)
+                            .width(54.dp)
+                        //.background(ImageProvider(R.drawable.rounded_background))
+                    )
+                    if (idx < 2) Spacer(modifier = GlanceModifier.width(8.dp))
+                }
             }
         }
     }
 
+    @SuppressLint("RestrictedApi")
     @Composable
     fun DayForecastDisplay(
+        context: Context,
         forecastDay: ForecastDay,
         modifier: GlanceModifier = GlanceModifier
     ) {
@@ -331,6 +371,7 @@ class WeatherWidget : GlanceAppWidget() {
         ) {
             //Text(forecastDay.date, modifier = GlanceModifier, style = TextStyle(fontSize = 14.sp))
             ConditionIconDisplay(
+                context = context,
                 modifier = GlanceModifier.size(24.dp),
                 condition = forecastDay.condition
             )
