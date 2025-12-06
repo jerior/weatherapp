@@ -3,10 +3,13 @@ package ru.burchik.myweatherapp.ui.common
 import android.annotation.SuppressLint
 import android.icu.text.SimpleDateFormat
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -30,29 +33,14 @@ import java.util.Date
 
 import java.util.Locale
 
-
-data class HourlyForecast(
-    val timestamp: Long,
-    val temperature: Double,
-    //val icon: String // e.g., "☀️", "☁️", "🌧️"
-    val iconResource: Int,
-)
-
-/*data class HourlyForecast(
-    val time: String,
-    val temperature: Double,
-    val condition: WeatherCondition,
-    val chanceOfRain: Int,
-    val windSpeed: Double
-)*/
-
 @Composable
-fun HourlyForecastChart(
+fun HourlyForecastScrollableChart(
     forecasts: List<HourlyForecast>,
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
     val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
 
     val timeFormat = SimpleDateFormat("H:mm", Locale.getDefault())
@@ -61,45 +49,43 @@ fun HourlyForecastChart(
         painterResource(id = it.iconResource)
     }
 
+    val scrollState = rememberScrollState()
+    val pointWidth = 80f
+    val horizontalPadding = 8.dp
+    // Вычисляем общую ширину на основе количества точек
+    val chartWidth = (forecasts.size * pointWidth).dp
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    val verticalPadding = 40f
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(scrollState)
+    ) {
         Canvas(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .width(chartWidth)
+                .height(150.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
         ) {
             if (forecasts.isEmpty()) return@Canvas
 
             val width = size.width
             val height = size.height
-            val horizontalPadding = 10f
-            val verticalPadding = 40f
-            val chartHeight = height - verticalPadding * 2
-            val chartWidth = width - horizontalPadding * 2
+            // Spacing between data points
+            val spacing = (width - horizontalPadding.toPx() * 2) / (forecasts.size - 1).coerceAtLeast(1)
+
+            val iconSizePx = 20.dp.toPx()
+            val chartHeight = height - verticalPadding - (iconSizePx + verticalPadding * 2)
 
             // Calculate temperature range
             val maxTemp = forecasts.maxOf { it.temperature }
             val minTemp = forecasts.minOf { it.temperature }
             val tempRange = maxTemp - minTemp
 
-            // Spacing between data points
-            val spacing = chartWidth / (forecasts.size - 1).coerceAtLeast(1)
-
-            // Draw grid lines
-            for (i in 0..3) {
-                val y = verticalPadding + (chartHeight / 3) * i
-                drawLine(
-                    color = onSurfaceColor.copy(alpha = 0.05f),
-                    start = Offset(horizontalPadding, y),
-                    end = Offset(width - horizontalPadding, y),
-                    strokeWidth = 1f
-                )
-            }
-
             // Calculate points
             val points = forecasts.mapIndexed { index, forecast ->
-                val x = horizontalPadding + index * spacing
+                val x = horizontalPadding.toPx() + (index * spacing)
                 val normalizedTemp = if (tempRange > 0) {
                     (forecast.temperature - minTemp) / tempRange
                 } else {
@@ -137,6 +123,23 @@ fun HourlyForecastChart(
                 style = Stroke(width = 3f, cap = StrokeCap.Round)
             )
 
+            // Опционально: рисуем точки
+            points.forEachIndexed { index, point ->
+                val x = point.x
+                val y = point.y
+
+                drawCircle(
+                    color = primaryColor,
+                    radius = 3.dp.toPx(),
+                    center = Offset(x, y)
+                )
+                drawCircle(
+                    color = onPrimaryColor,
+                    radius = 2.dp.toPx(),
+                    center = Offset(x, y)
+                )
+            }
+
             // Draw labels for each data point
             forecasts.forEachIndexed { index, forecast ->
                 val point = points[index]
@@ -159,7 +162,6 @@ fun HourlyForecastChart(
                 )
 
                 // Draw hour text at bottom
-                //val hourText = forecast.timestamp.format(hourFormatter)
                 val hourText = timeFormat.format(Date(forecast.timestamp * 1000))
 
                 val hourTextLayout = textMeasurer.measure(
@@ -177,24 +179,9 @@ fun HourlyForecastChart(
                     )
                 )
 
-                // Draw weather icon below hour
-/*                val iconTextLayout = textMeasurer.measure(
-                    text = forecast.icon,
-                    style = TextStyle(fontSize = 16.sp)
-                )
-                drawText(
-                    textLayoutResult = iconTextLayout,
-                    topLeft = Offset(
-                        point.x - iconTextLayout.size.width / 2,
-                        height - verticalPadding + 56
-                    )
-                )*/
-                //index * 138f -15f
 
-                val iconSizePx = 20.dp.toPx()
-                val space = ((width - horizontalPadding -8f)/ (painters.size - 1))
-                with(painters[index]){
-                    translate(left = -15f + (space * index) , top = 300f){
+                with(painters[index]) {
+                    translate(left = -8f + (spacing * index), top = chartHeight + verticalPadding * 2) {
                         draw(
                             size = Size(iconSizePx, iconSizePx)
                         )
@@ -206,27 +193,20 @@ fun HourlyForecastChart(
     }
 }
 
-/*    val sampleData = listOf(
-        HourlyForecast(now(), 22f, "☀️"),
-        HourlyForecast(now().plusHours(1), 24f, "☀️"),
-        HourlyForecast(now().plusHours(2), 26f, "⛅"),
-        HourlyForecast(now().plusHours(3), 25f, "☁️"),
-        HourlyForecast(now().plusHours(4), 23f, "🌧️"),
-        HourlyForecast(now().plusHours(5), 21f, "🌧️"),
-        HourlyForecast(now().plusHours(6), 19f, "⛅"),
-        HourlyForecast(now().plusHours(7), 18f, "🌙")
-    )*/
-
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Preview
 @Composable
-fun PreviewHourlyForecastChart() {
+fun PreviewHourlyForecastScrollableChart() {
     val timestamp = 1764190166L
     val sampleData = listOf(
         HourlyForecast(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
         HourlyForecast(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
         HourlyForecast(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
-        HourlyForecast(timestamp, 25.0, R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold),
+        HourlyForecast(
+            timestamp,
+            25.0,
+            R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold
+        ),
         HourlyForecast(timestamp, 23.0, R.drawable.sun_forecast_sunset_weather),
         HourlyForecast(timestamp, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
         HourlyForecast(timestamp, 19.0, R.drawable.sun_forecast_sunset_weather),
@@ -235,7 +215,7 @@ fun PreviewHourlyForecastChart() {
 
     MyWeatherAppTheme() {
         Surface() {
-            HourlyForecastChart(forecasts = sampleData, Modifier.height(150.dp))
+            HourlyForecastScrollableChart(forecasts = sampleData)
         }
     }
 }
@@ -243,18 +223,71 @@ fun PreviewHourlyForecastChart() {
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Preview
 @Composable
-fun PreviewHourlyForecastChart2() {
+fun PreviewHourlyForecastScrollableSmallChart() {
     val timestamp = 1764190166L
     val sampleData = listOf(
         HourlyForecast(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
         HourlyForecast(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
         HourlyForecast(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
-        HourlyForecast(timestamp, 25.0, R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold),
+        HourlyForecast(
+            timestamp,
+            25.0,
+            R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold
+        ),
     )
 
     MyWeatherAppTheme() {
         Surface {
-            HourlyForecastChart(forecasts = sampleData, Modifier.height(150.dp))
+            HourlyForecastScrollableChart(forecasts = sampleData)
+        }
+    }
+}
+
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@Preview
+@Composable
+fun PreviewHourlyForecastScrollableBigChart() {
+    val timestamp = 1765036829L
+    val sampleData = listOf(
+        HourlyForecast(timestamp + 3600, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecast(timestamp + 3600 * 2, 24.0, R.drawable.forecast_weather_cloudy_cloud),
+        HourlyForecast(timestamp + 3600 * 3, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
+        HourlyForecast(
+            timestamp + 3600 * 4,
+            25.0,
+            R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold
+        ),
+        HourlyForecast(timestamp + 3600 * 5, 23.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecast(timestamp + 3600 * 6, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
+        HourlyForecast(timestamp + 3600 * 7, 19.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecast(timestamp + 3600 * 8, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecast(timestamp + 3600 * 9, 23.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecast(timestamp + 3600 * 10, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
+        HourlyForecast(timestamp + 3600 * 11, 19.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecast(timestamp + 3600 * 12, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun)
+    )
+
+    MyWeatherAppTheme() {
+        Surface() {
+            HourlyForecastScrollableChart(forecasts = sampleData)
+        }
+    }
+}
+
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@Preview
+@Composable
+fun PreviewHourlyForecastScrollableSingleChart() {
+    val timestamp = 1765062025L
+    //val timestamp = 1765065625L
+    val sampleData = listOf(
+        HourlyForecast(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecast(timestamp + 3600, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+    )
+
+    MyWeatherAppTheme() {
+        Surface() {
+            HourlyForecastScrollableChart(forecasts = sampleData, Modifier)
         }
     }
 }

@@ -1,26 +1,28 @@
 package ru.burchik.myweatherapp.data.source.remote.mapper
 
+import ru.burchik.myweatherapp.data.source.remote.dto.ForecastDayDto
 import ru.burchik.myweatherapp.data.source.remote.dto.WeatherResponse
 import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.model.Weather
 import ru.burchik.myweatherapp.domain.model.WeatherCondition
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 fun WeatherResponse.toWeather(): Weather {
 
-    val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    val currentTimestamp = Clock.System.now().epochSeconds
 
     // Get hourly forecast for today only (next 24 hours from current time)
-    val todayHourly = forecast.forecastDay.firstOrNull()?.hour
+    val todayHourly = forecast.forecastDay
+        ?.flatMap { forecastDay: ForecastDayDto -> forecastDay.hour}
         ?.filter { hour ->
-            // Parse hour from time string "2024-01-15 14:00"
-            val hourOfDay = hour.time.split(" ")[1].split(":")[0].toInt()
-            hourOfDay >= currentHour
+            hour.timeEpoch >= currentTimestamp - 3600
         }
-        ?.take(12) // Show next 12 hours
+        ?.take(24) // Show next 12 hours
         ?.map { hour ->
             HourlyForecast(
                 time = formatHourTime(hour.time),

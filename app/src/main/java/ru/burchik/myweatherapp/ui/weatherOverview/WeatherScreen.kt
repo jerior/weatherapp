@@ -54,7 +54,7 @@ import ru.burchik.myweatherapp.domain.model.ForecastDay
 import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.util.IconSet
 import ru.burchik.myweatherapp.domain.util.WeatherConditionResolver
-import ru.burchik.myweatherapp.ui.common.HourlyForecastChart
+import ru.burchik.myweatherapp.ui.common.HourlyForecastScrollableChart
 import ru.burchik.myweatherapp.ui.common.WeatherIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -239,7 +239,9 @@ fun WeatherContent(
                 temperature = it.temperature,
                 iconResource = WeatherConditionResolver(context, iconSet = IconSet.DEFAULT).resolveIcon(it.condition)
             ) }
-            HourlyForecastChart(forecasts = hfc)
+
+            HourlyForecastScrollableChart(forecasts = hfc)
+
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -448,7 +450,7 @@ fun HourlyForecastItem(hour: HourlyForecast) {
         modifier = Modifier.width(70.dp)
     ) {
         Text(
-            text = hour.time,
+            text = hour.timeEpoch.toString(),
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center
