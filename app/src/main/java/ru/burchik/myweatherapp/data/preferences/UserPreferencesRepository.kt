@@ -34,7 +34,7 @@ class UserPreferencesRepository @Inject constructor(
         private val LAST_SEARCHED_LOCATION = stringPreferencesKey("last_searched_location")
         private val LAST_LOCATION_LATITUDE = doublePreferencesKey("last_location_latitude")
         private val LAST_LOCATION_LONGITUDE = doublePreferencesKey("last_location_longitude")
-        private val LAST_UPDATE = longPreferencesKey("last_update") //timestamp in the Weather already
+        //private val LAST_UPDATE = longPreferencesKey("last_update") //timestamp in the Weather already
     }
 
     // Flow to read preferences
@@ -46,7 +46,7 @@ class UserPreferencesRepository @Inject constructor(
                 lastSearchedLocation = preferences[LAST_SEARCHED_LOCATION] ?: "",
                 lastLocationLatitude = preferences[LAST_LOCATION_LATITUDE],
                 lastLocationLongitude = preferences[LAST_LOCATION_LONGITUDE],
-                lastUpdate = preferences[LAST_UPDATE], //actually duplication of WeatherField
+                //lastUpdate = preferences[LAST_UPDATE], //actually duplication of WeatherField
             )
         }.onEach {
             Timber.d("UserPreferences: ${it}")
@@ -55,7 +55,7 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setWeather(weather: Weather) {
         dataStore.edit { preferences ->
             preferences[WEATHER_JSON] = WeatherSerializer.toJson(weather)
-            preferences[LAST_UPDATE] = System.currentTimeMillis()  //actually duplication of WeatherField
+            //preferences[LAST_UPDATE] = System.currentTimeMillis()  //actually duplication of WeatherField
         }
     }
 

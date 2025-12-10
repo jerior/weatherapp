@@ -1,5 +1,11 @@
 package ru.burchik.myweatherapp.ui.weatherOverview
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +43,9 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -72,19 +81,31 @@ fun WeatherScreen(
             .displayCutoutPadding()
             .verticalScroll(rememberScrollState())
     ) {
-        if (state.isSearchBarVisible) {
-            SearchBar(
-                query = state.searchQuery,
-                onQueryChange = {
-                    viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
-                },
-                onQuerySearch = {
-                    viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
-                },
-                onLocationSearch = {
-                    viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
-                }
-            )
+
+        Crossfade(targetState = state.isSearchBarVisible) { isSearchVisible ->
+            if (isSearchVisible) {
+                SearchBar(
+                    query = state.searchQuery,
+                    onQueryChange = {
+                        viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
+                    },
+                    onQuerySearch = {
+                        viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
+                    },
+                    onLocationSearch = {
+                        viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+                    }
+                )
+            } else {
+                LocationHeader(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 18.dp),
+                    locationString = "${state.weather?.location}, ${state.weather?.country}",
+                    isLocationBased = state.isLocationBased,
+                    onHeaderClick = {
+                        viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
+                    }
+                )
+            }
         }
 
         if (state.error.isNotEmpty()) {
@@ -102,9 +123,6 @@ fun WeatherScreen(
             state.weather != null -> {
                 WeatherContent(
                     weatherState = state,
-                    onHeaderClick = {
-                        viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
-                    }
                 )
             }
 
@@ -216,9 +234,43 @@ fun ErrorContent(
 }
 
 @Composable
+fun LocationHeader(
+    modifier: Modifier = Modifier,
+    locationString: String,
+    isLocationBased: Boolean,
+    onHeaderClick: () -> Unit
+) {
+    Row(
+        modifier = modifier.clickable {
+            onHeaderClick()
+        },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = locationString,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(8.dp))
+        if (isLocationBased) {
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = null
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Outlined.ArrowDropDownCircle,
+                contentDescription = null
+            )
+        }
+    }
+    Spacer(modifier = Modifier.height(24.dp))
+}
+
+@Composable
 fun WeatherContent(
     weatherState: WeatherState,
-    onHeaderClick: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -227,18 +279,23 @@ fun WeatherContent(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        CurrentWeatherCard(weatherState, onHeaderClick = onHeaderClick)
+        CurrentWeatherCard(weatherState)
         Spacer(modifier = Modifier.height(8.dp))
 
         // Hourly Forecast Section
         if (weatherState.weather?.hourlyForecast?.isNotEmpty() == true) {
             Spacer(modifier = Modifier.height(16.dp))
             //HourlyForecastSection(hourlyForecast = weatherState.weather.hourlyForecast)
-            val hfc = weatherState.weather.hourlyForecast.map { ru.burchik.myweatherapp.ui.common.HourlyForecast(
-                timestamp = it.timeEpoch,
-                temperature = it.temperature,
-                iconResource = WeatherConditionResolver(context, iconSet = IconSet.DEFAULT).resolveIcon(it.condition)
-            ) }
+            val hfc = weatherState.weather.hourlyForecast.map {
+                ru.burchik.myweatherapp.ui.common.HourlyForecast(
+                    timestamp = it.timeEpoch,
+                    temperature = it.temperature,
+                    iconResource = WeatherConditionResolver(
+                        context,
+                        iconSet = IconSet.DEFAULT
+                    ).resolveIcon(it.condition)
+                )
+            }
 
             HourlyForecastScrollableChart(forecasts = hfc)
 
@@ -248,13 +305,32 @@ fun WeatherContent(
         Spacer(modifier = Modifier.height(16.dp))
         DailyForecastFixedSection(forecast = weatherState.weather?.forecast!!)
         Spacer(modifier = Modifier.height(16.dp))
+        LastUpdateInfo(timestamp = weatherState.weather.timestamp)
+    }
+}
+
+@Composable
+fun LastUpdateInfo(
+    modifier: Modifier = Modifier,
+    timestamp: Long?,
+) {
+    val ago = timestamp?.let { System.currentTimeMillis() - it }?.div(60 * 1000)?.toInt()
+    Column(
+        modifier = modifier
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.Bottom
+    ) {
+        Text(
+            fontSize = 8.sp,
+            text = "${ago} mins ago",
+        )
     }
 }
 
 @Composable
 fun CurrentWeatherCard(
     weatherState: WeatherState,
-    onHeaderClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -269,32 +345,7 @@ fun CurrentWeatherCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.clickable {
-                        onHeaderClick()
-                    },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "${weatherState.weather?.location}, ${weatherState.weather?.country}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    if (weatherState.isLocationBased) {
-                        Icon(
-                            imageVector = Icons.Default.LocationOn,
-                            contentDescription = null
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowDropDownCircle,
-                            contentDescription = null
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
+
 
                 Row(
                     modifier = Modifier
@@ -342,18 +393,6 @@ fun CurrentWeatherCard(
                         )
                     }
                 }
-            }
-            val ago = weatherState.weather?.timestamp?.let { System.currentTimeMillis() - it }?.div(60*1000)?.toInt()
-            Column(modifier = Modifier
-                .fillMaxSize()
-                .padding(end = 30.dp),
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Bottom
-            ) {
-                Text(
-                    fontSize = 8.sp,
-                    text = "${ago} mins ago",
-                )
             }
         }
     }
@@ -470,24 +509,24 @@ fun HourlyForecastItem(hour: HourlyForecast) {
             fontWeight = FontWeight.Bold
         )
 
-/*        if (hour.chanceOfRain > 0) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.WaterDrop,
-                    contentDescription = "Umbrella",
-                    Modifier.size(18.dp)
-                )
-                Text(
-                    text = "${hour.chanceOfRain}%",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }*/
+        /*        if (hour.chanceOfRain > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.WaterDrop,
+                            contentDescription = "Umbrella",
+                            Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "${hour.chanceOfRain}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }*/
     }
 }
 
