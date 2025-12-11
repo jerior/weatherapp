@@ -1,6 +1,7 @@
 package ru.burchik.myweatherapp.ui.weatherOverview
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,9 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.ArrowDropDownCircle
-import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,8 +41,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.paint
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -61,6 +63,7 @@ import ru.burchik.myweatherapp.domain.util.IconSet
 import ru.burchik.myweatherapp.domain.util.WeatherConditionResolver
 import ru.burchik.myweatherapp.ui.common.HourlyForecastScrollableChart
 import ru.burchik.myweatherapp.ui.common.HourlyForecastView
+import ru.burchik.myweatherapp.ui.common.IconResource
 import ru.burchik.myweatherapp.ui.common.WeatherIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,70 +79,79 @@ fun WeatherScreen(
         onRefresh = { viewModel.onEvent(WeatherEvent.RetryLastSearch) },
     ) {
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .paint(
-                    painterResource(id = R.drawable.artboard_1_trsp),
-                    contentScale = ContentScale.FillHeight)
-                .padding(top = 12.dp)
-                .displayCutoutPadding()
-                .verticalScroll(rememberScrollState())
-        ) {
-
-            Crossfade(targetState = state.isSearchBarVisible) { isSearchVisible ->
-                if (isSearchVisible) {
-                    SearchBar(
-                        query = state.searchQuery,
-                        onQueryChange = {
-                            viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
-                        },
-                        onQuerySearch = {
-                            viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
-                        },
-                        onLocationSearch = {
-                            viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
-                        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .paint(
+                        painterResource(id = R.drawable.artboard_1_trsp),
+                        contentScale = ContentScale.FillHeight,
                     )
-                } else {
-                    LocationHeader(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 18.dp),
-                        locationString = "${state.weather?.location}, ${state.weather?.country}",
-                        isLocationBased = state.isLocationBased,
-                        onHeaderClick = {
-                            viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
-                        }
-                    )
-                }
-            }
+                    .padding(top = 12.dp)
+                    .displayCutoutPadding()
+                    .verticalScroll(rememberScrollState())
+            ) {
 
-            if (state.error.isNotEmpty()) {
-                ErrorContent(
-                    error = state.error,
-                    onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
-                )
-            }
-
-            when {
-                state.isLoading -> {
-                    LoadingContent()
-                }
-
-                state.weather != null -> {
-                    WeatherContent(
-                        weatherState = state,
-                    )
-                }
-
-                state.weather == null -> {
-                    if (state.isLocationBased) {
-                        viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+                Crossfade(targetState = state.isSearchBarVisible) { isSearchVisible ->
+                    if (isSearchVisible) {
+                        SearchBar(
+                            query = state.searchQuery,
+                            onQueryChange = {
+                                viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
+                            },
+                            onQuerySearch = {
+                                viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
+                            },
+                            onLocationSearch = {
+                                viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+                            }
+                        )
                     } else {
-                        viewModel.onEvent(WeatherEvent.GetWeatherByQuery(state.lastSearchedLocation))
+                        LocationHeader(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 18.dp),
+                            locationString = "${state.weather?.location}, ${state.weather?.country}",
+                            isLocationBased = state.isLocationBased,
+                            onHeaderClick = {
+                                viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
+                            }
+                        )
+                    }
+                }
+
+                if (state.error.isNotEmpty()) {
+                    ErrorContent(
+                        error = state.error,
+                        onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
+                    )
+                }
+
+                when {
+                    state.isLoading -> {
+                        LoadingContent()
+                    }
+
+                    state.weather != null -> {
+                        WeatherContent(
+                            weatherState = state,
+                        )
+                    }
+
+                    state.weather == null -> {
+                        if (state.isLocationBased) {
+                            viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+                        } else {
+                            viewModel.onEvent(WeatherEvent.GetWeatherByQuery(state.lastSearchedLocation))
+                        }
                     }
                 }
             }
         }
+        // Color overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(temperatureToColor(state.weather?.temperature?.toFloat() ?: 0f).copy(alpha = 0.3f))
+        )
     }
 }
 
@@ -356,70 +368,144 @@ fun LastUpdateInfo(
 
 }
 
+fun temperatureToColor(temperature: Float): Color {
+    // Clamp temperature to the range -50 to +50
+    val clampedTemp = temperature.coerceIn(-50f, 50f)
+
+    return when {
+        clampedTemp < 0f -> {
+            // -50 to 0: Blue spectrum to white
+            val normalized = (clampedTemp + 50f) / 50f // 0.0 to 1.0
+            coldToWhite(normalized)
+        }
+        else -> {
+            // 0 to 50: White to yellow-red spectrum
+            val normalized = clampedTemp / 50f // 0.0 to 1.0
+            whiteToHot(normalized)
+        }
+    }
+}
+
+private fun coldToWhite(factor: Float): Color {
+    // Start with deep pastel blue, transition to white
+    val startBlue = Color(0xFF3394F5)  // Medium pastel blue
+    val endWhite = Color(0xFFFFFAFA)   // Slightly warm white
+
+    return Color(
+        red = startBlue.red + (endWhite.red - startBlue.red) * factor,
+        green = startBlue.green + (endWhite.green - startBlue.green) * factor,
+        blue = startBlue.blue + (endWhite.blue - startBlue.blue) * factor
+    )
+}
+
+private fun whiteToHot(factor: Float): Color {
+    // Transition: white -> yellow -> orange -> red
+    return when {
+        factor < 0.33f -> {
+            // White to pastel yellow
+            val f = factor / 0.33f
+            val white = Color(0xFFFFF1F1)
+            val yellow = Color(0xFFFFD596)  // Pastel yellow
+            lerpColor(white, yellow, f)
+        }
+        factor < 0.66f -> {
+            // Yellow to pastel orange
+            val f = (factor - 0.33f) / 0.33f
+            val yellow = Color(0xFFFFD596)
+            val orange = Color(0xFFFFB366)  // Pastel orange
+            lerpColor(yellow, orange, f)
+        }
+        else -> {
+            // Orange to pastel red
+            val f = (factor - 0.66f) / 0.34f
+            val orange = Color(0xFFD38E66)
+            val red = Color(0xFFC23E3E)     // Pastel red
+            lerpColor(orange, red, f)
+        }
+    }
+}
+
+private fun lerpColor(start: Color, end: Color, fraction: Float): Color {
+    return Color(
+        red = start.red + (end.red - start.red) * fraction,
+        green = start.green + (end.green - start.green) * fraction,
+        blue = start.blue + (end.blue - start.blue) * fraction
+    )
+}
+
+
 @Composable
 fun CurrentWeatherCard(
     weatherState: WeatherState,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(4.dp)
+    val tempColor = temperatureToColor(weatherState.weather?.temperature?.toFloat() ?: 0f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        tempColor,//.copy(alpha = 0.5f),
+                        tempColor.copy(alpha = 0f)
+                    )
+                )
+            )
+            .padding(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
             ) {
-
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        WeatherIcon(
-                            modifier = Modifier
-                                .alpha(0.5f)
-                                .size(64.dp),
-                            condition = weatherState.weather!!.condition,
+                    WeatherIcon(
+                        modifier = Modifier
+                            .alpha(0.5f)
+                            .size(64.dp),
+                        condition = weatherState.weather!!.condition,
+                    )
+                    Text(
+                        text = "${weatherState.weather.temperature.toInt()}°C",
+                        style = MaterialTheme.typography.displayMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.feels_like,
+                            weatherState.weather.feelsLike.toInt()
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    WeatherDetailIconItem(
+                        imagePainter = IconResource.fromDrawableResource(R.drawable.waterdrop)
+                            .asPainterResource(),
+                        value = "${weatherState.weather?.humidity}%"
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    WeatherDetailIconItem(
+                        imagePainter = IconResource.fromDrawableResource(R.drawable.wind2)
+                            .asPainterResource(),
+                        value = stringResource(
+                            R.string.wind_speed_km_h,
+                            weatherState.weather?.windSpeed!!.toInt()
                         )
-                        Text(
-                            text = "${weatherState.weather.temperature.toInt()}°C",
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.feels_like,
-                                weatherState.weather.feelsLike.toInt()
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        WeatherDetailIconItem(
-                            imageVector = Icons.Outlined.WaterDrop,
-                            value = "${weatherState.weather?.humidity}%"
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        WeatherDetailIconItem(
-                            imageVector = Icons.Outlined.Air,
-                            value = stringResource(
-                                R.string.wind_speed_km_h,
-                                weatherState.weather?.windSpeed!!.toInt()
-                            )
-                        )
-                    }
+                    )
                 }
             }
         }
@@ -427,20 +513,23 @@ fun CurrentWeatherCard(
 }
 
 @Composable
-fun WeatherDetailIconItem(imageVector: ImageVector, value: String) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(8.dp)
+fun WeatherDetailIconItem(imagePainter: Painter, value: String) {
+    Row(
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(8.dp)
+            .fillMaxWidth()
     ) {
         Icon(
-            imageVector = imageVector,
+            painter = imagePainter,
             contentDescription = "Humidity",
-            Modifier.size(18.dp)
+            Modifier.size(26.dp)
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
     }
@@ -560,9 +649,23 @@ fun HourlyForecastItem(hour: HourlyForecast) {
 
 @Composable
 fun DailyForecastItem(day: ForecastDay, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier.width(140.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
+    val maxTempColor = temperatureToColor(day.maxTemp.toFloat())
+    val minTempColor = temperatureToColor(day.minTemp.toFloat())
+
+    Box(
+        modifier = modifier
+            .width(140.dp)
+            .clip(MaterialTheme.shapes.large)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        maxTempColor.copy(alpha = 1f),
+                        minTempColor.copy(alpha = 0.8f),
+                        minTempColor.copy(alpha = 0.05f)
+                    )
+                )
+            ),
+        //elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -597,7 +700,8 @@ fun DailyForecastItem(day: ForecastDay, modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.WaterDrop,
+                    painter = IconResource.fromDrawableResource(R.drawable.waterdrop)
+                        .asPainterResource(),
                     contentDescription = "Umbrella",
                     Modifier.size(18.dp)
                 )

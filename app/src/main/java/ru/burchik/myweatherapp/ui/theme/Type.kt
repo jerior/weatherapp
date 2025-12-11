@@ -19,35 +19,42 @@ val fontName = GoogleFont("Amatic SC")
 
 val fontFamilyHandwriting = FontFamily(
     Font(googleFont = fontName, fontProvider = provider),
-    androidx.compose.ui.text.font.Font(R.font.amatic_sc_regular),
+    androidx.compose.ui.text.font.Font(R.font.amatic_sc_bold),
 )
 
 // Set of Material typography styles to start with
 val Typography = Typography(
     bodySmall = TextStyle(
-        fontFamily = fontFamilyHandwriting,// FontFamily.Default,
+        fontFamily = fontFamilyHandwriting,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Bold,
     ),
     bodyMedium = TextStyle(
-        fontFamily = fontFamilyHandwriting,// FontFamily.Default,
+        fontFamily = fontFamilyHandwriting,
+        fontSize = 16.sp,
     ),
     bodyLarge = TextStyle(
-        fontFamily = fontFamilyHandwriting,// FontFamily.Default,
+        fontFamily = fontFamilyHandwriting,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
+        fontSize = 18.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp
     ),
     headlineMedium = TextStyle(
-        fontFamily = fontFamilyHandwriting,// FontFamily.Default,
+        fontFamily = fontFamilyHandwriting,
+        fontSize = 24.sp,
     ),
     displayMedium = TextStyle(
-        fontFamily = fontFamilyHandwriting,// FontFamily.Default,
+        fontFamily = fontFamilyHandwriting,
+        fontSize = 24.sp,
     ),
     titleMedium = TextStyle(
-        fontFamily = fontFamilyHandwriting,// FontFamily.Default,
+        fontFamily = fontFamilyHandwriting,
+        fontSize = 24.sp,
     ),
     titleLarge = TextStyle(
-        fontFamily = fontFamilyHandwriting,// FontFamily.Default,
+        fontFamily = fontFamilyHandwriting,
+        fontSize = 28.sp,
     ),
 
     /* Other default text styles to override

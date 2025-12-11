@@ -25,6 +25,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -129,8 +130,8 @@ fun HourlyForecastScrollableChart(
                 style = Stroke(width = 3f, cap = StrokeCap.Round)
             )
 
-            // Опционально: рисуем точки
-            points.forEachIndexed { index, point ->
+            // Draw Dots
+            points.forEach { point ->
                 val x = point.x
                 val y = point.y
 
@@ -155,9 +156,10 @@ fun HourlyForecastScrollableChart(
                 val tempTextLayout = textMeasurer.measure(
                     text = tempText,
                     style = TextStyle(
-                        fontSize = 13.sp,
+                        fontSize = 15.sp,
                         color = primaryColor,
                         fontFamily = customFontFamily,
+                        fontWeight = FontWeight.Bold
                     ),
 
                 )
@@ -175,7 +177,7 @@ fun HourlyForecastScrollableChart(
                 val hourTextLayout = textMeasurer.measure(
                     text = hourText,
                     style = TextStyle(
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = onSurfaceColor.copy(alpha = 0.7f),
                         fontFamily = customFontFamily,
                     )
@@ -188,7 +190,6 @@ fun HourlyForecastScrollableChart(
                     )
                 )
 
-
                 with(painters[index]) {
                     translate(left = -8f + (spacing * index), top = chartHeight + verticalPadding * 2) {
                         draw(
@@ -196,7 +197,6 @@ fun HourlyForecastScrollableChart(
                         )
                     }
                 }
-
             }
         }
     }
