@@ -32,7 +32,6 @@ class WeatherViewModel @Inject constructor(
         .onStart {
             viewModelScope.launch {
                 loadPreferences()
-                //loadInitialWeather()
             }
         }
         .stateIn(
@@ -55,6 +54,7 @@ class WeatherViewModel @Inject constructor(
                     isSearchBarVisible = false
                 )
             }
+            //smells...  //make a test with prefs long reading and check the results
             _state.value.weather?.timestamp?.let {
                 if (it < System.currentTimeMillis() - 30 * 60 * 1000){
                     loadInitialWeather()

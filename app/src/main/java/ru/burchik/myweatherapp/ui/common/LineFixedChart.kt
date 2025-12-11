@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -35,13 +37,17 @@ import java.util.Locale
 
 @Composable
 fun HourlyForecastScrollableChart(
-    forecasts: List<HourlyForecast>,
+    forecasts: List<HourlyForecastView>,
     modifier: Modifier = Modifier
 ) {
+    //val context = LocalContext.current
     val textMeasurer = rememberTextMeasurer()
     val primaryColor = MaterialTheme.colorScheme.primary
     val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
     val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+
+    //font from R for canvas
+    val customFontFamily = FontFamily(Font(R.font.amatic_sc_regular))
 
     val timeFormat = SimpleDateFormat("H:mm", Locale.getDefault())
 
@@ -66,7 +72,7 @@ fun HourlyForecastScrollableChart(
             modifier = Modifier
                 .width(chartWidth)
                 .height(150.dp)
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+                .padding(horizontal = 8.dp, vertical = 8.dp)
         ) {
             if (forecasts.isEmpty()) return@Canvas
 
@@ -150,8 +156,10 @@ fun HourlyForecastScrollableChart(
                     text = tempText,
                     style = TextStyle(
                         fontSize = 13.sp,
-                        color = primaryColor
-                    )
+                        color = primaryColor,
+                        fontFamily = customFontFamily,
+                    ),
+
                 )
                 drawText(
                     textLayoutResult = tempTextLayout,
@@ -168,7 +176,8 @@ fun HourlyForecastScrollableChart(
                     text = hourText,
                     style = TextStyle(
                         fontSize = 11.sp,
-                        color = onSurfaceColor.copy(alpha = 0.7f)
+                        color = onSurfaceColor.copy(alpha = 0.7f),
+                        fontFamily = customFontFamily,
                     )
                 )
                 drawText(
@@ -199,18 +208,18 @@ fun HourlyForecastScrollableChart(
 fun PreviewHourlyForecastScrollableChart() {
     val timestamp = 1764190166L
     val sampleData = listOf(
-        HourlyForecast(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
-        HourlyForecast(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
-        HourlyForecast(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
-        HourlyForecast(
+        HourlyForecastView(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecastView(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
+        HourlyForecastView(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
+        HourlyForecastView(
             timestamp,
             25.0,
             R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold
         ),
-        HourlyForecast(timestamp, 23.0, R.drawable.sun_forecast_sunset_weather),
-        HourlyForecast(timestamp, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
-        HourlyForecast(timestamp, 19.0, R.drawable.sun_forecast_sunset_weather),
-        HourlyForecast(timestamp, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun)
+        HourlyForecastView(timestamp, 23.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecastView(timestamp, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
+        HourlyForecastView(timestamp, 19.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecastView(timestamp, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun)
     )
 
     MyWeatherAppTheme() {
@@ -226,10 +235,10 @@ fun PreviewHourlyForecastScrollableChart() {
 fun PreviewHourlyForecastScrollableSmallChart() {
     val timestamp = 1764190166L
     val sampleData = listOf(
-        HourlyForecast(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
-        HourlyForecast(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
-        HourlyForecast(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
-        HourlyForecast(
+        HourlyForecastView(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecastView(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
+        HourlyForecastView(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
+        HourlyForecastView(
             timestamp,
             25.0,
             R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold
@@ -249,22 +258,22 @@ fun PreviewHourlyForecastScrollableSmallChart() {
 fun PreviewHourlyForecastScrollableBigChart() {
     val timestamp = 1765036829L
     val sampleData = listOf(
-        HourlyForecast(timestamp + 3600, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
-        HourlyForecast(timestamp + 3600 * 2, 24.0, R.drawable.forecast_weather_cloudy_cloud),
-        HourlyForecast(timestamp + 3600 * 3, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
-        HourlyForecast(
+        HourlyForecastView(timestamp + 3600, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecastView(timestamp + 3600 * 2, 24.0, R.drawable.forecast_weather_cloudy_cloud),
+        HourlyForecastView(timestamp + 3600 * 3, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
+        HourlyForecastView(
             timestamp + 3600 * 4,
             25.0,
             R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold
         ),
-        HourlyForecast(timestamp + 3600 * 5, 23.0, R.drawable.sun_forecast_sunset_weather),
-        HourlyForecast(timestamp + 3600 * 6, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
-        HourlyForecast(timestamp + 3600 * 7, 19.0, R.drawable.sun_forecast_sunset_weather),
-        HourlyForecast(timestamp + 3600 * 8, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun),
-        HourlyForecast(timestamp + 3600 * 9, 23.0, R.drawable.sun_forecast_sunset_weather),
-        HourlyForecast(timestamp + 3600 * 10, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
-        HourlyForecast(timestamp + 3600 * 11, 19.0, R.drawable.sun_forecast_sunset_weather),
-        HourlyForecast(timestamp + 3600 * 12, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun)
+        HourlyForecastView(timestamp + 3600 * 5, 23.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecastView(timestamp + 3600 * 6, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
+        HourlyForecastView(timestamp + 3600 * 7, 19.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecastView(timestamp + 3600 * 8, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecastView(timestamp + 3600 * 9, 23.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecastView(timestamp + 3600 * 10, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
+        HourlyForecastView(timestamp + 3600 * 11, 19.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecastView(timestamp + 3600 * 12, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun)
     )
 
     MyWeatherAppTheme() {
@@ -281,8 +290,8 @@ fun PreviewHourlyForecastScrollableSingleChart() {
     val timestamp = 1765062025L
     //val timestamp = 1765065625L
     val sampleData = listOf(
-        HourlyForecast(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
-        HourlyForecast(timestamp + 3600, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecastView(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecastView(timestamp + 3600, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
     )
 
     MyWeatherAppTheme() {

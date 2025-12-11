@@ -19,4 +19,8 @@
     <string name="weather_sleet">Гололед</string>
     <string name="weather_wind">Ветренно</string>
     <string name="weather_unknown">Неизвестно</string>
+    <string name="loading">Загрузка...</string>
+    <string name="updatedAgo">%1$d мин назад</string>
+    <string name="justUpdated">Только что обновлено</string>
+    <string name="outdated">Старые данные</string>
 </resources>

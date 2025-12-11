@@ -1,11 +1,6 @@
 package ru.burchik.myweatherapp.ui.weatherOverview
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,16 +36,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,6 +60,7 @@ import ru.burchik.myweatherapp.domain.model.HourlyForecast
 import ru.burchik.myweatherapp.domain.util.IconSet
 import ru.burchik.myweatherapp.domain.util.WeatherConditionResolver
 import ru.burchik.myweatherapp.ui.common.HourlyForecastScrollableChart
+import ru.burchik.myweatherapp.ui.common.HourlyForecastView
 import ru.burchik.myweatherapp.ui.common.WeatherIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,63 +71,72 @@ fun WeatherScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = 12.dp)
-            .displayCutoutPadding()
-            .verticalScroll(rememberScrollState())
+    PullToRefreshBox(
+        isRefreshing = state.isLoading,
+        onRefresh = { viewModel.onEvent(WeatherEvent.RetryLastSearch) },
     ) {
 
-        Crossfade(targetState = state.isSearchBarVisible) { isSearchVisible ->
-            if (isSearchVisible) {
-                SearchBar(
-                    query = state.searchQuery,
-                    onQueryChange = {
-                        viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
-                    },
-                    onQuerySearch = {
-                        viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
-                    },
-                    onLocationSearch = {
-                        viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
-                    }
-                )
-            } else {
-                LocationHeader(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 18.dp),
-                    locationString = "${state.weather?.location}, ${state.weather?.country}",
-                    isLocationBased = state.isLocationBased,
-                    onHeaderClick = {
-                        viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
-                    }
-                )
-            }
-        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .paint(
+                    painterResource(id = R.drawable.artboard_1_trsp),
+                    contentScale = ContentScale.FillHeight)
+                .padding(top = 12.dp)
+                .displayCutoutPadding()
+                .verticalScroll(rememberScrollState())
+        ) {
 
-        if (state.error.isNotEmpty()) {
-            ErrorContent(
-                error = state.error,
-                onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
-            )
-        }
-
-        when {
-            state.isLoading -> {
-                LoadingContent()
-            }
-
-            state.weather != null -> {
-                WeatherContent(
-                    weatherState = state,
-                )
-            }
-
-            state.weather == null -> {
-                if (state.isLocationBased) {
-                    viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+            Crossfade(targetState = state.isSearchBarVisible) { isSearchVisible ->
+                if (isSearchVisible) {
+                    SearchBar(
+                        query = state.searchQuery,
+                        onQueryChange = {
+                            viewModel.onEvent(WeatherEvent.UpdateSearchQuery(it))
+                        },
+                        onQuerySearch = {
+                            viewModel.onEvent(WeatherEvent.GetWeatherByQuery(it))
+                        },
+                        onLocationSearch = {
+                            viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+                        }
+                    )
                 } else {
-                    viewModel.onEvent(WeatherEvent.GetWeatherByQuery(state.lastSearchedLocation))
+                    LocationHeader(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 18.dp),
+                        locationString = "${state.weather?.location}, ${state.weather?.country}",
+                        isLocationBased = state.isLocationBased,
+                        onHeaderClick = {
+                            viewModel.onEvent(WeatherEvent.ToggleSearchBarVisibility)
+                        }
+                    )
+                }
+            }
+
+            if (state.error.isNotEmpty()) {
+                ErrorContent(
+                    error = state.error,
+                    onRetry = { viewModel.onEvent(WeatherEvent.RetryLastSearch) }
+                )
+            }
+
+            when {
+                state.isLoading -> {
+                    LoadingContent()
+                }
+
+                state.weather != null -> {
+                    WeatherContent(
+                        weatherState = state,
+                    )
+                }
+
+                state.weather == null -> {
+                    if (state.isLocationBased) {
+                        viewModel.onEvent(WeatherEvent.GetWeatherByLocation)
+                    } else {
+                        viewModel.onEvent(WeatherEvent.GetWeatherByQuery(state.lastSearchedLocation))
+                    }
                 }
             }
         }
@@ -194,7 +200,7 @@ fun LoadingContent() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator()
             Spacer(modifier = Modifier.height(16.dp))
-            Text("Загрузка...")
+            Text(stringResource(R.string.loading))
         }
     }
 }
@@ -286,8 +292,10 @@ fun WeatherContent(
         if (weatherState.weather?.hourlyForecast?.isNotEmpty() == true) {
             Spacer(modifier = Modifier.height(16.dp))
             //HourlyForecastSection(hourlyForecast = weatherState.weather.hourlyForecast)
+
+            //smells..
             val hfc = weatherState.weather.hourlyForecast.map {
-                ru.burchik.myweatherapp.ui.common.HourlyForecast(
+                HourlyForecastView(
                     timestamp = it.timeEpoch,
                     temperature = it.temperature,
                     iconResource = WeatherConditionResolver(
@@ -314,18 +322,38 @@ fun LastUpdateInfo(
     modifier: Modifier = Modifier,
     timestamp: Long?,
 ) {
-    val ago = timestamp?.let { System.currentTimeMillis() - it }?.div(60 * 1000)?.toInt()
+    val ago =
+        timestamp?.let { System.currentTimeMillis() - it }?.div(60 * 1000)?.toInt() ?: Int.MAX_VALUE
     Column(
         modifier = modifier
             .fillMaxSize(),
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.Bottom
     ) {
-        Text(
-            fontSize = 8.sp,
-            text = "${ago} mins ago",
-        )
+        when {
+            ago > 60 -> {
+                Text(
+                    fontSize = 8.sp,
+                    text = stringResource(R.string.outdated),
+                )
+            }
+
+            ago > 10 -> {
+                Text(
+                    fontSize = 8.sp,
+                    text = stringResource(R.string.updatedAgo, ago),
+                )
+            }
+
+            else -> {
+                Text(
+                    fontSize = 8.sp,
+                    text = stringResource(R.string.justUpdated),
+                )
+            }
+        }
     }
+
 }
 
 @Composable

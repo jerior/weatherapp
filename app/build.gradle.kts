@@ -106,9 +106,12 @@ dependencies {
     // logger
     implementation(libs.timber)
 
+    //downloadable google fonts
+    implementation(libs.androidx.compose.ui.text.google.fonts)
+
     //testing
-    androidTestImplementation ("com.google.truth:truth:1.4.5")
-    testImplementation ("com.google.truth:truth:1.4.5")
+    androidTestImplementation (libs.truth)
+    testImplementation (libs.truth)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -31,10 +31,9 @@ import java.util.Date
 import java.util.Locale
 
 
-data class HourlyForecast(
+data class HourlyForecastView(
     val timestamp: Long,
     val temperature: Double,
-    //val icon: String // e.g., "☀️", "☁️", "🌧️"
     val iconResource: Int,
 )
 
@@ -48,7 +47,7 @@ data class HourlyForecast(
 
 @Composable
 fun HourlyForecastChart(
-    forecasts: List<HourlyForecast>,
+    forecasts: List<HourlyForecastView>,
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
@@ -60,7 +59,6 @@ fun HourlyForecastChart(
     val painters = forecasts.map {
         painterResource(id = it.iconResource)
     }
-
 
     Column(modifier = modifier.fillMaxWidth()) {
         Canvas(
@@ -177,20 +175,6 @@ fun HourlyForecastChart(
                     )
                 )
 
-                // Draw weather icon below hour
-/*                val iconTextLayout = textMeasurer.measure(
-                    text = forecast.icon,
-                    style = TextStyle(fontSize = 16.sp)
-                )
-                drawText(
-                    textLayoutResult = iconTextLayout,
-                    topLeft = Offset(
-                        point.x - iconTextLayout.size.width / 2,
-                        height - verticalPadding + 56
-                    )
-                )*/
-                //index * 138f -15f
-
                 val iconSizePx = 20.dp.toPx()
                 val space = ((width - horizontalPadding -8f)/ (painters.size - 1))
                 with(painters[index]){
@@ -206,31 +190,20 @@ fun HourlyForecastChart(
     }
 }
 
-/*    val sampleData = listOf(
-        HourlyForecast(now(), 22f, "☀️"),
-        HourlyForecast(now().plusHours(1), 24f, "☀️"),
-        HourlyForecast(now().plusHours(2), 26f, "⛅"),
-        HourlyForecast(now().plusHours(3), 25f, "☁️"),
-        HourlyForecast(now().plusHours(4), 23f, "🌧️"),
-        HourlyForecast(now().plusHours(5), 21f, "🌧️"),
-        HourlyForecast(now().plusHours(6), 19f, "⛅"),
-        HourlyForecast(now().plusHours(7), 18f, "🌙")
-    )*/
-
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Preview
 @Composable
 fun PreviewHourlyForecastChart() {
     val timestamp = 1764190166L
     val sampleData = listOf(
-        HourlyForecast(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
-        HourlyForecast(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
-        HourlyForecast(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
-        HourlyForecast(timestamp, 25.0, R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold),
-        HourlyForecast(timestamp, 23.0, R.drawable.sun_forecast_sunset_weather),
-        HourlyForecast(timestamp, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
-        HourlyForecast(timestamp, 19.0, R.drawable.sun_forecast_sunset_weather),
-        HourlyForecast(timestamp, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun)
+        HourlyForecastView(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecastView(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
+        HourlyForecastView(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
+        HourlyForecastView(timestamp, 25.0, R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold),
+        HourlyForecastView(timestamp, 23.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecastView(timestamp, 21.0, R.drawable.rain_drop_weather_cloud_forecast),
+        HourlyForecastView(timestamp, 19.0, R.drawable.sun_forecast_sunset_weather),
+        HourlyForecastView(timestamp, 18.0, R.drawable.forecast_cloudy_cloud_weather_sun)
     )
 
     MyWeatherAppTheme() {
@@ -246,10 +219,10 @@ fun PreviewHourlyForecastChart() {
 fun PreviewHourlyForecastChart2() {
     val timestamp = 1764190166L
     val sampleData = listOf(
-        HourlyForecast(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
-        HourlyForecast(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
-        HourlyForecast(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
-        HourlyForecast(timestamp, 25.0, R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold),
+        HourlyForecastView(timestamp, 22.0, R.drawable.forecast_cloudy_cloud_weather_sun),
+        HourlyForecastView(timestamp, 24.0, R.drawable.forecast_weather_cloudy_cloud),
+        HourlyForecastView(timestamp, 26.0, R.drawable.thunder_lightening_weather_cloud_storm),
+        HourlyForecastView(timestamp, 25.0, R.drawable.weather_winter_forecast_snow_christmas_snowflake_cold),
     )
 
     MyWeatherAppTheme() {
